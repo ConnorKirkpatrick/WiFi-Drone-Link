@@ -1,11 +1,12 @@
 from pymavlink.dialects.v20 import common as mavlink2
-import asyncio, io, time, os
+import asyncio, time, os
 from Radios.TX import TX_Radio
+from initialise import initialiseWiFi
 import messageStore
 
 
-
 async def main():
+    initialiseWiFi()
     os.environ["MAVLINK20"] = '1'
     outputStream = messageStore.messageStore()
 
@@ -29,6 +30,7 @@ async def main():
                            mavlink2.MAV_STATE_STANDBY)
     # mav.gps_raw_int_send()
     # mav.attitude_send()
+
 
 if __name__ == '__main__':
     asyncio.run(main())
