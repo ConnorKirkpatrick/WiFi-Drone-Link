@@ -23,12 +23,16 @@ class TX_Radio:
         self.data = data_stream
 
     async def tx(self):
-        msg = await self.data.read()
-        print(msg)
-        # sendp(self.dataFrame / Raw(load=msg), iface=self.interface)
-        return 0
+        print("Started")
+        while True:
+            msg = await self.data.read()
+            if msg is None:
+                await asyncio.sleep(0.01)
+            else:
+                print(msg)
+                # sendp(self.dataFrame / Raw(load=msg), iface=self.interface)
 
-    async def rx(self):
+    def rx(self):
         pass
 
 # This segment of code can be used to observe if a probe request can be sent. If this is possible it means that the
