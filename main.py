@@ -3,7 +3,7 @@ import asyncio, time, os
 from Radios.TX import TX_Radio
 from initialise import initialiseWiFi
 import messageStore
-
+from Mavlink import messages
 
 async def main():
     initialiseWiFi()
@@ -16,18 +16,10 @@ async def main():
     # own structure to allow us to encrypt and broadcast the message
 
     asyncio.create_task(TX.tx())
+    asyncio.create_task(messages.heartBeat(vehicle))
 
-    vehicle.heartbeat_send(mavlink2.MAV_TYPE_VTOL_TILTROTOR, mavlink2.MAV_AUTOPILOT_GENERIC,
-                           mavlink2.MAV_MODE_PREFLIGHT,
-                           mavlink2.MAV_MODE_PREFLIGHT, mavlink2.MAV_STATE_STANDBY)
-    # for each in outputStream.getvalue():
-    #    print(each)
-    # exit()
-    time.sleep(0.1)
-    vehicle.heartbeat_send(mavlink2.MAV_TYPE_VTOL_TILTROTOR, mavlink2.MAV_AUTOPILOT_GENERIC,
-                           mavlink2.MAV_MODE_AUTO_ARMED,
-                           mavlink2.MAV_MODE_AUTO_ARMED,
-                           mavlink2.MAV_STATE_STANDBY)
+
+
     # mav.gps_raw_int_send()
     # mav.attitude_send()
 
