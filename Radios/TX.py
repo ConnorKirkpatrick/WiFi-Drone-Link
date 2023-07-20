@@ -23,7 +23,7 @@ class TX_Radio:
         self.data = data_stream
 
     async def tx(self):
-        msg = await self.data.get()
+        msg = await self.data.read()
         print(msg)
         # sendp(self.dataFrame / Raw(load=msg), iface=self.interface)
         return 0
