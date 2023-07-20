@@ -15,7 +15,7 @@ async def main():
     # Note: file is the address/device mavlink will try to transmit on. We will route this to our
     # own structure to allow us to encrypt and broadcast the message
 
-    # asyncio.run(TX.tx())
+    asyncio.create_task(TX.tx())
 
     vehicle.heartbeat_send(mavlink2.MAV_TYPE_VTOL_TILTROTOR, mavlink2.MAV_AUTOPILOT_GENERIC,
                            mavlink2.MAV_MODE_PREFLIGHT,
