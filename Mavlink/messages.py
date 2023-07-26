@@ -5,7 +5,8 @@ from pymavlink.dialects.v20 import common as mavlink2
 
 async def heartBeat(vehicle):
     while True:
-        vehicle.heartbeat_send(mavlink2.MAV_TYPE_VTOL_TILTROTOR, mavlink2.MAV_AUTOPILOT_GENERIC,
-                               mavlink2.MAV_MODE_PREFLIGHT,
-                               mavlink2.MAV_MODE_PREFLIGHT, mavlink2.MAV_STATE_STANDBY)
+        vehicle.heartbeat_send(mavlink2.MAV_TYPE_HEXAROTOR, mavlink2.MAV_AUTOPILOT_PX4,
+                               mavlink2.MAV_MODE_FLAG_TEST_ENABLED,
+                               mavlink2.MAV_MODE_FLAG_TEST_ENABLED, mavlink2.MAV_STATE_STANDBY)
+        vehicle.send
         await asyncio.sleep(1)
