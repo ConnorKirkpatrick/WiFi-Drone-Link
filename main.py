@@ -9,10 +9,12 @@ from Mavlink import messages
 async def main():
     #initialiseWiFi()
     os.environ["MAVLINK20"] = '1'
+    os.environ["SYS_ID"] = '1'
     outputStream = messageStore.messageStore()
 
-    vehicle = mavlink2.MAVLink(outputStream)
+    vehicle = mavlink2.MAVLink(outputStream, srcSystem=1, srcComponent=1)
     TX = TX_Radio(outputStream)
+
     # Note: file is the address/device mavlink will try to transmit on. We will route this to our
     # own structure to allow us to encrypt and broadcast the message
 
