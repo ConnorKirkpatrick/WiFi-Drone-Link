@@ -20,7 +20,7 @@ async def main():
 
     asyncio.create_task(TX.tx())
     asyncio.create_task(messages.heartBeat(vehicle))
-
+    asyncio.create_task(messages.GPS_Raw(vehicle))
 
     print("Tasks created")
 
