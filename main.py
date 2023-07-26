@@ -6,9 +6,6 @@ from initialise import initialiseWiFi
 import messageStore
 from Mavlink import messages
 
-#Thread structure
-#   Main thread- the thread that is decoding and sending messages
-#   Radio thread, the thread that actually handles the wifi radios
 async def main():
     #initialiseWiFi()
     os.environ["MAVLINK20"] = '1'
@@ -22,7 +19,11 @@ async def main():
     asyncio.create_task(TX.tx())
     asyncio.create_task(messages.heartBeat(vehicle))
 
+
     print("Tasks created")
+
+
+
     while True:
         await asyncio.sleep(1)
 
