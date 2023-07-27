@@ -15,6 +15,7 @@ async def packageHandler(pkt):
     if pkt.haslayer(IP) and pkt[IP].src == "127.0.0.1":
         RX_Bridge.sendto(pkt[Raw].load, (RX_IP, RX_PORT))
 
+
 class Radio:
     dataFrame = RadioTap() / Dot11(addr1="00:00:00:00:00:00",
                                    addr2="00:00:00:00:00:00",
@@ -29,7 +30,7 @@ class Radio:
         self.data = data_stream
 
     async def tx(self):
-        print("Started")
+        # print("Started")
         while True:
             msg = await self.data.read()
             if msg is None:
@@ -47,15 +48,15 @@ class Radio:
             sniff(iface=self.interface, prn=packageHandler, store=0)
         pass
 
-    async def self_RX(self,vehicle):
+    async def self_RX(self, vehicle):
         # QGC will try to send its messages according to the packet information that we pass it
         # we thus need to capture this information to correctly package and send it via the wireless broadcast
         TX_Bridge = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        TX_Bridge.bind((RX_IP,52796))
-        TX_Bridge.listen(5)
+        TX_Bridge.bind((RX_IP, 52796))
         while True:
-            c, addr = TX_Bridge.accept()
-            msg = c.recv(280)
+            msg = bytearray(280)
+            TX_Bridge.recv_into(msg)
+            msg = msg.rstrip(b'\x00')
             m = vehicle.decode(msg)
             print(m)
             await asyncio.sleep(0.01)
