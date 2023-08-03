@@ -39,8 +39,10 @@ class Radio:
         self.data = data_stream
 
         self.curve = ec.SECP256R1
-        self.keys = None
+        self.ownKey = None
         self.targetKey = None
+        self.masterSecret = None
+        self.currentSecret = None
         # Upon initiating, attempt to connect to a second radio in order to exchange keys
         # Radios start by default on channel 36
         # Message ID's: 1 is handshake,
@@ -85,9 +87,9 @@ class Radio:
         # Step 0, generate keys
         # self.keys = ECC.generate(curve='p256')
 
-        self.keys = ec.generate_private_key(self.curve)
-        print(self.keys.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
-                                                  format=serialization.PublicFormat.OpenSSH))
+        self.ownKey = ec.generate_private_key(self.curve)
+        print(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
+                                                    format=serialization.PublicFormat.OpenSSH))
         # Step 1, broadcast information
         # Initial handshake, broadcast your identity, public key, and channel
 
@@ -95,8 +97,8 @@ class Radio:
         # which we check we can decrypt with their public key
         msg = bytearray()
         msg.extend(('0' + ID).encode())
-        msg.extend(self.keys.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
-                                                       format=serialization.PublicFormat.OpenSSH))
+        msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
+                                                         format=serialization.PublicFormat.OpenSSH))
         msg.extend("36".encode())
         sendp(self.dataFrame / Raw(load=msg), iface=self.interface)
 
@@ -117,31 +119,28 @@ class Radio:
                 # Got a broadcast, respond with ID, pubKey
                 msg = bytearray()
                 msg.extend(('1' + ID).encode())
-                msg.extend(self.keys.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
-                                                               format=serialization.PublicFormat.OpenSSH))
+                msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
+                                                                 format=serialization.PublicFormat.OpenSSH))
                 sendp(self.dataFrame / Raw(load=msg), iface=self.interface)
 
                 # Generate initial shared secret
-                sharedSecret = self.keys.exchange(ec.ECDH(), self.targetKey)
-                derived_key = HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=b'handshake data', ).derive(
-                    sharedSecret)
-                print(derived_key)
+                sharedSecret = self.ownKey.exchange(ec.ECDH(), self.targetKey)
+                self.masterSecret = HKDF(algorithm=hashes.SHA256(), length=32, salt=None,
+                                         info=b'handshake data', ).derive(sharedSecret)
                 # Generate a proper key
-                keySecret = bcrypt(derived_key, 15,b'0000000000000000')
-                x = scrypt(derived_key.decode(), '0', 32, 1024, 8, 1)
-                print(keySecret)
+                self.currentSecret = scrypt(self.masterSecret, '0', 32, 1024, 8, 1)
+                print(self.currentSecret)
                 # Now wait for the target to respond first
 
             elif msg[0:1].decode() == '1':
                 # Step 4, generate shared secret
                 self.targetKey = serialization.load_ssh_public_key(msg[4:])
-                sharedSecret = self.keys.exchange(ec.ECDH(), self.targetKey)
-                derived_key = HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=b'handshake data', ).derive(
-                    sharedSecret)
-                print(derived_key)
-                keySecret = bcrypt(derived_key, 15, b'0000000000000000')
-                x = scrypt(derived_key.decode(), '0', 32, 1024, 8, 1)
-                print(keySecret)
+                sharedSecret = self.ownKey.exchange(ec.ECDH(), self.targetKey)
+                self.masterSecret = HKDF(algorithm=hashes.SHA256(), length=32, salt=None,
+                                         info=b'handshake data', ).derive(sharedSecret)
+                # Generate a proper key
+                self.currentSecret = scrypt(self.masterSecret, '0', 32, 1024, 8, 1)
+                print(self.currentSecret)
 
         # Initial handshake, broadcast your identity, public key, and channel
         # upon receiving a handshake broadcast, encrypt a phrase using the targets public key, respond with own ID, own
