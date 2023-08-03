@@ -92,8 +92,7 @@ class Radio:
         # self.keys = ECC.generate(curve='p256')
 
         self.ownKey = ec.generate_private_key(self.curve)
-        print(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
-                                                    format=serialization.PublicFormat.OpenSSH))
+
         # Step 1, broadcast information
         # Initial handshake, broadcast your identity, public key, and channel
 
@@ -105,19 +104,18 @@ class Radio:
                                                          format=serialization.PublicFormat.OpenSSH))
         msg.extend("36".encode())
         sendp(self.dataFrame / Raw(load=msg), iface=self.interface)
-
         # Step 2, listen for either a broadcast or broadcast response
         while True:
             pkt = sniff(iface=self.interface, filter="udp and host 127.0.0.1", count=1)[0]
             msg = pkt[Raw].load
-            print(msg)
-            print("Type: " + msg[0:1].decode())
+            if self.currentSecret is not None:
+                # if a key is active, try to decrypt the message
+                msg = self.eEngine.decrypt_and_verify(msg[0:-16], msg[-16:])
 
+            print("Message Type: " + msg[0:1].decode())
             if msg[0:1].decode() == '0':
-                print("ID: " + msg[1:4].decode())
-                print("Chan: " + msg[-2:].decode())
+                print("Got broadcast from: " + msg[1:4].decode() + " on channel: " + msg[-2:].decode())
                 # Step 3, extract public key
-                print(msg[4:-2])
                 self.targetKey = serialization.load_ssh_public_key(msg[4:-2])
 
                 # Got a broadcast, respond with ID, pubKey
@@ -126,18 +124,20 @@ class Radio:
                 msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
                                                                  format=serialization.PublicFormat.OpenSSH))
                 sendp(self.dataFrame / Raw(load=msg), iface=self.interface)
+                print("Responded with own data....")
 
                 # Generate initial shared secret
                 sharedSecret = self.ownKey.exchange(ec.ECDH(), self.targetKey)
                 self.masterSecret = HKDF(algorithm=hashes.SHA256(), length=32, salt=None,
                                          info=b'handshake data', ).derive(sharedSecret)
+
                 # Generate a proper key, using a fixed salt for now, possibility of adding a future change
                 self.currentSecret = scrypt(self.masterSecret, '0', 32, 1024, 8, 1)
-                print(self.currentSecret)
-                self.eEngine = ChaCha20_Poly1305.new(self.currentSecret)
+                self.eEngine = ChaCha20_Poly1305.new(key=self.currentSecret, nonce=b'00000000')
                 # Now wait for the target to respond first, goto step 5
 
             elif msg[0:1].decode() == '1':
+                print("Got response from " + msg[1:4].decode())
                 # Step 4, generate shared secret
                 self.targetKey = serialization.load_ssh_public_key(msg[4:])
                 sharedSecret = self.ownKey.exchange(ec.ECDH(), self.targetKey)
@@ -145,13 +145,15 @@ class Radio:
                                          info=b'handshake data', ).derive(sharedSecret)
                 # Generate a proper key, using a fixed salt for now, possibility of adding a future change
                 self.currentSecret = scrypt(self.masterSecret, '0', 32, 1024, 8, 1)
-                print(self.currentSecret)
-                self.eEngine = ChaCha20_Poly1305.new(self.currentSecret)
+                self.eEngine = ChaCha20_Poly1305.new(key=self.currentSecret, nonce=b'00000000')
                 # Now broadcast an encrypted message back to the other device
                 # This message consists of the concatenation of the device ID's and the current channel
-                data = msg[1:4].decode()+ID+'36'
-                data = self.eEngine.encrypt_and_digest(data)
-                print(data)
+                data = '2'+msg[1:4].decode() + ID + '36'
+                data = self.eEngine.encrypt_and_digest(data.encode())
+                msg = b''.join(data)
+                sendp(self.dataFrame / Raw(load=msg), iface=self.interface)
+                print("Sent cipher authentication msg")
             elif msg[0:1].decode() == '2':
                 # Step 5, verify that the encryption keys are correct
-                pass
+                print("STEP 2")
+                exit()
