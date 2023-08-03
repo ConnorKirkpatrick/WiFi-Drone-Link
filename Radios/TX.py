@@ -38,11 +38,15 @@ class Radio:
         self.interface = interface
         self.data = data_stream
 
+        # Cryptography variables
+        # Exchange variables
         self.curve = ec.SECP256R1
         self.ownKey = None
         self.targetKey = None
         self.masterSecret = None
+        # ChaCha20 variables
         self.currentSecret = None
+        self.eEngine = None
         # Upon initiating, attempt to connect to a second radio in order to exchange keys
         # Radios start by default on channel 36
         # Message ID's: 1 is handshake,
@@ -127,10 +131,11 @@ class Radio:
                 sharedSecret = self.ownKey.exchange(ec.ECDH(), self.targetKey)
                 self.masterSecret = HKDF(algorithm=hashes.SHA256(), length=32, salt=None,
                                          info=b'handshake data', ).derive(sharedSecret)
-                # Generate a proper key
+                # Generate a proper key, using a fixed salt for now, possibility of adding a future change
                 self.currentSecret = scrypt(self.masterSecret, '0', 32, 1024, 8, 1)
                 print(self.currentSecret)
-                # Now wait for the target to respond first
+                self.eEngine = ChaCha20_Poly1305.new(self.currentSecret)
+                # Now wait for the target to respond first, goto step 5
 
             elif msg[0:1].decode() == '1':
                 # Step 4, generate shared secret
@@ -138,14 +143,15 @@ class Radio:
                 sharedSecret = self.ownKey.exchange(ec.ECDH(), self.targetKey)
                 self.masterSecret = HKDF(algorithm=hashes.SHA256(), length=32, salt=None,
                                          info=b'handshake data', ).derive(sharedSecret)
-                # Generate a proper key
+                # Generate a proper key, using a fixed salt for now, possibility of adding a future change
                 self.currentSecret = scrypt(self.masterSecret, '0', 32, 1024, 8, 1)
                 print(self.currentSecret)
-
-        # Initial handshake, broadcast your identity, public key, and channel
-        # upon receiving a handshake broadcast, encrypt a phrase using the targets public key, respond with own ID, own
-        # pub-Key, and the encrypted message
-        # Target should respond with your message encrypted with your public key, and then a new phrase encrypted with
-        # your key again
-        # Final response is made using the targets public key and the combination of both messages
-        # After the final message, a shared secret is generated and used to encrypt the contents of all further messages
+                self.eEngine = ChaCha20_Poly1305.new(self.currentSecret)
+                # Now broadcast an encrypted message back to the other device
+                # This message consists of the concatenation of the device ID's and the current channel
+                data = msg[1:4].decode()+ID+'36'
+                data = self.eEngine.encrypt_and_digest(data)
+                print(data)
+            elif msg[0:1].decode() == '2':
+                # Step 5, verify that the encryption keys are correct
+                pass
