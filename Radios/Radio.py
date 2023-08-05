@@ -17,23 +17,8 @@ from Crypto.Protocol.KDF import bcrypt, scrypt
 
 from main import inputStream
 
-RX_Bridge = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-RX_IP = "127.0.0.1"
-RX_PORT = 14550
-
-
-async def packageHandler(pkt):
-    if pkt.haslayer(IP) and pkt[IP].src == "127.0.0.1":
-        RX_Bridge.sendto(pkt[Raw].load, (RX_IP, RX_PORT))
-
 
 # These two functions work to ensure that we capture 99% of incoming packets despite background processing
-def inputHandler(pkt):
-    inputStream.put(pkt)
-
-
-def wirelessReceiver():
-    sniff(iface='wlan1', prn=inputHandler, filter="udp and host 127.0.0.1")
 
 
 class Radio:
@@ -45,14 +30,24 @@ class Radio:
                                                                                  dst='127.0.0.1') / \
                 UDP(sport=5000, dport=5001)
 
-    def __init__(self, output_Stream, input_Stream, interface="wlan1"):
+    def inputHandler(self, pkt):
+        # Possibly add address filtering at this layer
+        inputStream.put(pkt)
+
+    def wirelessReceiver(self):
+        sniff(iface='wlan1', prn=self.inputHandler, filter="udp and host 127.0.0.1")
+
+    def __init__(self, vehicle, output_Stream, input_Stream, ID, channel, interface="wlan1"):
+        self.vehicle = vehicle
         self.interface = interface
         self.outputStream = output_Stream
         self.input = input_Stream
+        self.QGC_Socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.QGC_Addr = ("127.0.0.1", 14550)
         # Identity variables
-        self.ID = None
+        self.ID = ID
         self.target = None
-        self.channel = '36'
+        self.channel = channel
         # Cryptography variables
         # Exchange variables
         self.curve = ec.SECP256R1
@@ -63,7 +58,7 @@ class Radio:
         self.currentSecret = None
         self.eEngine = None
         # Startup the radio listener thread
-        listener = threading.Thread(wirelessReceiver())
+        listener = threading.Thread(self.wirelessReceiver())
         listener.start()
         # Upon initiating, attempt to connect to a second radio in order to exchange keys
         # Radios start by default on channel 36
@@ -78,6 +73,7 @@ class Radio:
         """
         self.eEngine = ChaCha20_Poly1305.new(key=self.currentSecret, nonce=b'00000000')
         return b''.join(self.eEngine.encrypt_and_digest(message.encode()))
+
     # potentially think of storing and using the past message MAC as the next nonce for our message
     # the last mac we generated during encryption is the next mac we use to decrypt
     def decrypt(self, message, mac):
@@ -94,6 +90,11 @@ class Radio:
             return None
 
     async def tx(self):
+        """
+        The Transmission method is used by the drone mainly. This will take the packets sent via the vehicle object
+        and then send them via the wireless interface
+        :return:
+        """
         # print("Started")
         while True:
             msg = await self.outputStream.read()
@@ -102,27 +103,51 @@ class Radio:
             else:
                 print(msg)
                 data = self.dataFrame / Raw(load=msg)
-                await packageHandler(data)
+                # await packageHandler(data)
+                # TODO: Wrap this data correctly with management IDs
                 # sendp(self.dataFrame / Raw(load=msg), iface=self.interface)
 
     async def rx(self):
+        """
+        The main Receiver for the application will check the type of data received and then handle it accordingly
+        The only 2 data types we should receive during main runtime is types 4 and 5. These are either standard mavlink
+        messages, or configuration packages
+        Mavlink packages are simply stripped of our ID information and then passed to the QGC app socket
+        Management packets are TODO
+        :return:
+        """
         # QGroundControl binds to port 14550 upon start, thus forward all of our received messages to there.
         # This method is used to capture the broadcast from the drone and hand it to the QGC program
         while True:
-            sniff(iface=self.interface, prn=packageHandler, store=0, filter="udp and host 127.0.0.1")
-        pass
+            if not self.input.empty():
+                msg = self.input.get(False)
+                if msg[0].decode == '4':
+                    # this message is a standard mavlink message, pass it on
+                    # Send the mavlink message to QGC excluding the message type and ID
+                    self.QGC_Socket.sendto(msg[4:],self.QGC_Addr)
+                    # For the drone, this information needs to be decoded then sent via serial to the flight controller
+                elif msg[0].decode == '5':
+                    # code 5 is a management frame, this controls the RPi settings
+                    # TODO
+                    pass
 
-    async def self_RX(self, vehicle):
-        # QGC will try to send its messages according to the packet information that we pass it
-        # we thus need to capture this information to correctly package and send it via the wireless broadcast
+    async def self_RX(self):
+        """
+        This method handles receiving the packets sent from QGC to the drone when used as a ground control station.
+        Due to our use of the loopback address in broadcasts, QGC will send its messages to that address
+        We thus bind to one of the ports QGC uses on the loopback adaptor to collect these packets
+        The packets are then wrapped with the message type (mavlink:4) and device ID before broadcasting
+        :return:
+        """
         TX_Bridge = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        TX_Bridge.bind((RX_IP, 52796))
+        TX_Bridge.bind(("127.0.0.1", 52796))  # bind to the local port QGC will send data to
         while True:
-            msg = bytearray(280)
+            msg = bytearray(284)
             TX_Bridge.recv_into(msg)
             msg = msg.rstrip(b'\x00')
-            m = vehicle.decode(msg)
-            print(m)
+            msg = b'4' + self.ID.encode() + msg
+            # push the QGC message to the wireless interface with added message code and self ID
+            self.outputStream.write(msg)
             await asyncio.sleep(0.01)
         pass
 
@@ -150,11 +175,11 @@ class Radio:
         # Step 2, listen for either a broadcast or broadcast response
         while True:
             if not self.input.empty():
-                pkt = self.input.get()
+                pkt = self.input.get(False)
                 msg = pkt[Raw].load
                 if self.currentSecret is not None:
                     # if a key is active, try to decrypt the message
-                    msg = self.decrypt(msg[0:-16],msg[-16:])
+                    msg = self.decrypt(msg[0:-16], msg[-16:])
 
                 if msg is None or msg[1:4].decode() == self.ID:
                     # we check if the message did not decrypt or if we captured our own message
@@ -199,13 +224,13 @@ class Radio:
                         self.currentSecret = scrypt(self.masterSecret, '0', 32, 1024, 8, 1)
                         # Now broadcast an encrypted message back to the other device
                         # This message consists of the concatenation of the device ID's and the current channel
-                        data = '2' + msg[1:4].decode() + self.ID + '36'
+                        data = '2' + msg[1:4].decode() + self.ID + self.channel
                         sendp(self.dataFrame / Raw(load=self.encrypt(data)), iface=self.interface)
                         print("Sent cipher authentication msg")
                     elif msg[0:1].decode() == '2':
                         # Step 5, verify that the encryption keys are correct
                         print("STEP 2")
-                        if msg[1:].decode() == self.ID+self.target+self.channel:
+                        if msg[1:].decode() == self.ID + self.target + self.channel:
                             print("KEY GOOD")
                         else:
                             print("KEY BAD")
