@@ -16,11 +16,11 @@ async def main():
     os.environ["MAVLINK20"] = '1'
     # read settings from file
     config = open("config.txt", "r")
-    ID = config.readline().split(":")[1]
-    Interface = config.readline().split(":")[1]
-    channel = config.readline().split(":")[1]
-    recPort = config.readline().split(":")[1]
-    decPort = config.readline().split(":")[1]
+    ID = config.readline().split(":")[1].strip("\n")
+    Interface = config.readline().split(":")[1].strip("\n")
+    channel = config.readline().split(":")[1].strip("\n")
+    recPort = config.readline().split(":")[1].strip("\n")
+    decPort = config.readline().split(":")[1].strip("\n")
     config.close()
 
     outputStream = messageStore.messageStore()
@@ -34,10 +34,12 @@ async def main():
     asyncio.create_task(TX.tx())
     asyncio.create_task(TX.rx())
     if ID == "GCS":
+        print("Detected as GCS")
         # GCS tasks, this is the handlers to pass received messages to the mavlink socket and catch messages to transmit
         asyncio.create_task(TX.self_RX())
         pass
     elif ID.__contains__("DR"):
+        print("Detected as Drone")
         # Drone tasks, this involves things like publishing the heartbeat and telemetry
         # Either the FC will provide messages as self timed intervals, or we request messages vai timed intervals on the
         # RPI
