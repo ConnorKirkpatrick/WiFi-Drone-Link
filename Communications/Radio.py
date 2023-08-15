@@ -18,36 +18,32 @@ from Crypto.Protocol.KDF import bcrypt, scrypt
 from main import inputStream
 
 
-# These two functions work to ensure that we capture 99% of incoming packets despite background processing
-
-
 class Radio:
-    dataFrame = RadioTap() / Dot11(addr1="00:00:00:00:00:00",
-                                   addr2="00:00:00:00:00:00",
-                                   addr3="00:00:00:00:00:00",
-                                   type=2,
-                                   subtype=8) / Dot11QoS() / LLC() / SNAP() / IP(src='127.0.0.1',
-                                                                                 dst='127.0.0.1') / \
-                UDP(sport=5000, dport=5001)
 
-    def inputHandler(self, pkt):
-        # Possibly add address filtering at this layer
-        inputStream.put(pkt)
-
-    def wirelessReceiver(self):
-        sniff(iface='wlan1', prn=self.inputHandler, filter="udp and host 127.0.0.1")
-
-    def __init__(self, vehicle, output_Stream, input_Stream, ID, channel, interface="wlan1"):
+    def __init__(self, vehicle, output_Stream, input_Stream, ID, channel, recPort, destPort, interface="wlan1"):
         self.vehicle = vehicle
         self.interface = interface
         self.outputStream = output_Stream
         self.input = input_Stream
         self.QGC_Socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.QGC_Addr = ("127.0.0.1", 14550)
+        self.recPort = recPort
+        self.destPort = destPort
+        self.dataFrame = RadioTap() / Dot11(addr1="00:00:00:00:00:00",
+                                            addr2="00:00:00:00:00:00",
+                                            addr3="00:00:00:00:00:00",
+                                            type=2,
+                                            subtype=8) / Dot11QoS() / LLC() / SNAP() / IP(src='127.0.0.1',
+                                                                                          dst='127.0.0.1') / \
+                         UDP(sport=recPort, dport=destPort)
+
         # Identity variables
         self.ID = ID
         self.target = None
         self.channel = channel
+        # Management stores
+        self.reserve = {}
+        self.timers = {}
         # Cryptography variables
         # Exchange variables
         self.curve = ec.SECP256R1
@@ -61,9 +57,16 @@ class Radio:
         listener = threading.Thread(self.wirelessReceiver())
         listener.start()
         # Upon initiating, attempt to connect to a second radio in order to exchange keys
-        # Radios start by default on channel 36
+        # Communications start by default on channel 36
         # Message ID's: 1 is handshake,
         self.handshake()
+
+    def inputHandler(self, pkt):
+        # Possibly add address filtering at this layer
+        inputStream.put(pkt)
+
+    def wirelessReceiver(self):
+        sniff(iface='wlan1', prn=self.inputHandler, filter="udp and host 127.0.0.1 and dst port "+self.recPort)
 
     def encrypt(self, message):
         """
@@ -107,6 +110,12 @@ class Radio:
                 # TODO: Wrap this data correctly with management IDs
                 # sendp(self.dataFrame / Raw(load=msg), iface=self.interface)
 
+                """ 
+                If the packet is type 4 (mavlink) we should store it in the reserve under the mavlink ID
+                we should also create and store a time in the retransmission store for this message
+                If the timer triggers, it pulls the message from the linked store and re-transmits it
+                """
+
     async def rx(self):
         """
         The main Receiver for the application will check the type of data received and then handle it accordingly
@@ -124,10 +133,14 @@ class Radio:
                 if msg[0].decode == '4':
                     # this message is a standard mavlink message, pass it on
                     # Send the mavlink message to QGC excluding the message type and ID
-                    self.QGC_Socket.sendto(msg[4:],self.QGC_Addr)
+                    self.QGC_Socket.sendto(msg[4:], self.QGC_Addr)
                     # For the drone, this information needs to be decoded then sent via serial to the flight controller
+                    # This means that the drone should also respond with an ACK with the mavlink ID
+                    #   ACK messages are a management message type, thus with ID 5
                 elif msg[0].decode == '5':
-                    # code 5 is a management frame, this controls the RPi settings
+                    # code 5 is a management frame, this controls settings and retransmissions
+                    # if we get an ACK for an ID, we search the reserve for this item and pull its timer object out
+                    #   we then terminate the timer before deleting the message from the reserve
                     # TODO
                     pass
 
@@ -181,9 +194,8 @@ class Radio:
                     # if a key is active, try to decrypt the message
                     msg = self.decrypt(msg[0:-16], msg[-16:])
 
-                if msg is None or msg[1:4].decode() == self.ID:
-                    # we check if the message did not decrypt or if we captured our own message
-                    # if either of these are true, we should ignore the message
+                if msg is None:
+                    # we check if the message did not decrypt
                     pass
                 else:
                     # Data is valid, process as normal
