@@ -18,8 +18,16 @@ from Crypto.Protocol.KDF import bcrypt, scrypt
 from main import inputStream
 
 
-class Radio:
+def inputHandler(pkt):
+    # Possibly add address filtering at this layer
+    inputStream.put(pkt)
 
+
+def wirelessReceiver(recPort):
+    sniff(iface='wlan1', prn=inputHandler, filter="udp and host 127.0.0.1 and dst port " + str(recPort))
+
+
+class Radio:
     def __init__(self, vehicle, output_Stream, input_Stream, ID, channel, recPort, destPort, interface="wlan1"):
         self.vehicle = vehicle
         self.interface = interface
@@ -27,15 +35,15 @@ class Radio:
         self.input = input_Stream
         self.QGC_Socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.QGC_Addr = ("127.0.0.1", 14550)
-        self.recPort = recPort
-        self.destPort = destPort
+        self.recPort = int(recPort)
+        self.destPort = int(destPort)
         self.dataFrame = RadioTap() / Dot11(addr1="00:00:00:00:00:00",
                                             addr2="00:00:00:00:00:00",
                                             addr3="00:00:00:00:00:00",
                                             type=2,
                                             subtype=8) / Dot11QoS() / LLC() / SNAP() / IP(src='127.0.0.1',
                                                                                           dst='127.0.0.1') / \
-                         UDP(sport=recPort, dport=destPort)
+                         UDP(sport=self.recPort, dport=self.destPort)
 
         # Identity variables
         self.ID = ID
@@ -54,19 +62,12 @@ class Radio:
         self.currentSecret = None
         self.eEngine = None
         # Startup the radio listener thread
-        listener = threading.Thread(self.wirelessReceiver())
+        listener = threading.Thread(target=wirelessReceiver, args=[self.recPort])
         listener.start()
         # Upon initiating, attempt to connect to a second radio in order to exchange keys
         # Communications start by default on channel 36
         # Message ID's: 1 is handshake,
         self.handshake()
-
-    def inputHandler(self, pkt):
-        # Possibly add address filtering at this layer
-        inputStream.put(pkt)
-
-    def wirelessReceiver(self):
-        sniff(iface='wlan1', prn=self.inputHandler, filter="udp and host 127.0.0.1 and dst port "+self.recPort)
 
     def encrypt(self, message):
         """
