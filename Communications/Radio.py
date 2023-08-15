@@ -18,16 +18,16 @@ from Crypto.Protocol.KDF import bcrypt, scrypt
 from main import inputStream
 
 
-def inputHandler(pkt):
-    # Possibly add address filtering at this layer
-    inputStream.put(pkt)
 
-
-def wirelessReceiver(recPort):
-    sniff(iface='wlan1', prn=inputHandler, filter="udp and host 127.0.0.1 and dst port " + str(recPort))
 
 
 class Radio:
+    def inputHandler(self, pkt):
+        # Possibly add address filtering at this layer
+        self.input.put(pkt)
+    def wirelessReceiver(self):
+        sniff(iface='wlan1', prn=self.inputHandler, filter="udp and host 127.0.0.1 and dst port " + str(self.recPort))
+
     def __init__(self, vehicle, output_Stream, input_Stream, ID, channel, recPort, destPort, interface="wlan1"):
         self.vehicle = vehicle
         self.interface = interface
@@ -62,7 +62,7 @@ class Radio:
         self.currentSecret = None
         self.eEngine = None
         # Startup the radio listener thread
-        listener = threading.Thread(target=wirelessReceiver, args=[self.recPort])
+        listener = threading.Thread(target=self.wirelessReceiver)
         listener.start()
         # Upon initiating, attempt to connect to a second radio in order to exchange keys
         # Communications start by default on channel 36
@@ -167,7 +167,6 @@ class Radio:
 
     def handshake(self):
         # ID is of size 3 FIXED
-        self.ID = "GCS"
         # Step 0, generate keys
         # self.keys = ECC.generate(curve='p256')
 
@@ -237,7 +236,7 @@ class Radio:
                         self.currentSecret = scrypt(self.masterSecret, '0', 32, 1024, 8, 1)
                         # Now broadcast an encrypted message back to the other device
                         # This message consists of the concatenation of the device ID's and the current channel
-                        data = '2' + msg[1:4].decode() + self.ID + self.channel
+                        data = '2' + self.target + self.ID + self.channel
                         sendp(self.dataFrame / Raw(load=self.encrypt(data)), iface=self.interface)
                         print("Sent cipher authentication msg")
                     elif msg[0:1].decode() == '2':
@@ -245,6 +244,10 @@ class Radio:
                         print("STEP 2")
                         if msg[1:].decode() == self.ID + self.target + self.channel:
                             print("KEY GOOD")
+                            # Now respond with the same but inverted message
+                            data = '2' + self.target + self.ID + self.channel
+                            sendp(self.dataFrame / Raw(load=self.encrypt(data)), iface=self.interface)
+                            break
                         else:
                             print("KEY BAD")
                             # for a bad key scenario, we send back a message of plaintext "XXXXXXX..."
