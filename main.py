@@ -1,7 +1,7 @@
 from pymavlink.dialects.v20 import common as mavlink2
 import asyncio, os, queue
 from threading import *
-from Radios.Radio import Radio
+from Communications.Radio import Radio
 from initialise import initialiseWiFi
 import messageStore
 from Mavlink import messages
@@ -16,14 +16,16 @@ async def main():
     os.environ["MAVLINK20"] = '1'
     # read settings from file
     config = open("config.txt", "r")
-    ID = config.readline()
-    Interface = config.readline()
-    channel = config.readline()
+    ID = config.readline().split(":")[1]
+    Interface = config.readline().split(":")[1]
+    channel = config.readline().split(":")[1]
+    recPort = config.readline().split(":")[1]
+    decPort = config.readline().split(":")[1]
     config.close()
 
     outputStream = messageStore.messageStore()
     vehicle = mavlink2.MAVLink(outputStream, srcSystem=1, srcComponent=1)
-    TX = Radio(vehicle, outputStream, inputStream, ID, channel, Interface)
+    TX = Radio(vehicle, outputStream, inputStream, ID, channel, recPort, decPort, Interface)
     # Note: file is the address/device mavlink will try to transmit on. We will route this to our
     # own structure to allow us to encrypt and broadcast the message
 
@@ -37,6 +39,14 @@ async def main():
         pass
     elif ID.__contains__("DR"):
         # Drone tasks, this involves things like publishing the heartbeat and telemetry
+        # Either the FC will provide messages as self timed intervals, or we request messages vai timed intervals on the
+        # RPI
+        #   Technically the second option could provide less overhead for the FC
+        # If first option, we just sit and listen until a messages is given which is then sorted via some ID
+        # If second option, the messages.heartbeat/GPS task will send a request to the FC and then packages returned
+        # data
+
+
         # Mavlink tasks
         asyncio.create_task(messages.heartBeat(vehicle))
         asyncio.create_task(messages.GPS_Raw(vehicle))
@@ -53,3 +63,8 @@ async def main():
 if __name__ == '__main__':
     print("Running")
     asyncio.run(main())
+
+
+# TODO: setup serial link with Arduino
+# TODO:     establish standard drone telem messages to base station
+
