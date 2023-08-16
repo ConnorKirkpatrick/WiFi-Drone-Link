@@ -319,6 +319,10 @@ class Radio:
                     elif int.from_bytes(msg[0:1], "big") == 2:
                         # Step 5, verify that the encryption keys are correct
                         print("STEP 2")
+                        resp = bytearray()
+                        resp.extend(b'0')
+                        resp.extend(msg[1:3])
+                        self.send(4, resp, False)
                         if msg[3:-1].decode() == self.ID + self.target and msg[-1] == self.channel:
                             print("KEY GOOD")
                             # Now respond with the same but inverted message
@@ -330,15 +334,16 @@ class Radio:
                             break
                         else:
                             print("KEY BAD")
-                            # for a bad key scenario, we send back a message of plaintext "XXXXXXX..."
-                            # this signals to both parties to clear their obtained data and start again
-                            sendp(self.dataFrame / Raw(load="XXXXXXXXXXXXXXXX"), iface=self.interface)
-                            time.sleep(0.01)
-                            # resend our broadcast to re-initiate the pairing process
-                            msg = bytearray()
-                            msg.extend(('0' + self.ID).encode())
-                            msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
-                                                                             format=serialization.PublicFormat.OpenSSH))
-                            msg.extend(self.channel.encode())
-                            sendp(self.dataFrame / Raw(load=msg), iface=self.interface)
+                            # for a bad key scenario, we are unable to send an ACK back
+                            # once the other side timesout on resending, they should reset their keys and restart
+                    if int.from_bytes(msg[0:1], "big") == 4:
+                        # management message
+                        if msg[3] == 0:
+                            # Got ACK
+                            key = int.from_bytes(msg[4:], "big")
+                            if self.timers[key].cancel():
+                                print("Terminated timer successfully")
+                            else:
+                                print("Terminated timer failed")
+
         exit()
