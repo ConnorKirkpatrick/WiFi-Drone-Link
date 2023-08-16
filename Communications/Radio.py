@@ -79,7 +79,7 @@ class Radio:
         :return: [Bytes] The encrypted message
         """
         self.eEngine = ChaCha20_Poly1305.new(key=self.currentSecret, nonce=b'00000000')
-        return b''.join(self.eEngine.encrypt_and_digest(message.encode()))
+        return b''.join(self.eEngine.encrypt_and_digest(message))
 
     # potentially think of storing and using the past message MAC as the next nonce for our message
     # the last mac we generated during encryption is the next mac we use to decrypt
@@ -205,7 +205,7 @@ class Radio:
             sendp(self.dataFrame / Raw(load=encodedMsg), iface=self.interface)
             pass
         else:
-            # sendp(self.dataFrame / Raw(load=self.encrypt(encodedMsg)), iface=self.interface)
+            sendp(self.dataFrame / Raw(load=self.encrypt(encodedMsg)), iface=self.interface)
             pass
         if needAck:
             # Finally, create a timer object with the ID of the message
@@ -217,14 +217,14 @@ class Radio:
     async def reSend(self, messageType, ID, messageContents):
         encodedMsg = bytearray()
         encodedMsg.extend(messageType.to_bytes(1, "big"))
-        encodedMsg.extend(ID.to_bytes(2, "big"))  # 2 byte value, ID's from 0-65536
-        encodedMsg.extend(bytes(messageContents, 'utf-8'))
+        encodedMsg.extend(self.messageID.to_bytes(2, "big"))  # 2 byte value, ID's from 0-65536
+        encodedMsg.extend(messageContents)
         if self.currentSecret is None:
             # No set encryption, broadcast in the clear
-            # sendp(self.dataFrame / Raw(load=encodedMsg), iface=self.interface)
+            sendp(self.dataFrame / Raw(load=encodedMsg), iface=self.interface)
             pass
         else:
-            # sendp(self.dataFrame / Raw(load=self.encrypt(encodedMsg)), iface=self.interface)
+            sendp(self.dataFrame / Raw(load=self.encrypt(encodedMsg)), iface=self.interface)
             pass
 
     def handshake(self):
@@ -241,7 +241,9 @@ class Radio:
 
         # This can be augmented with signatures linked to the ID, fixed message is encrypted using their private key
         msg = bytearray()
-        msg.extend(('0' + self.ID).encode())
+        id = 0
+        msg.extend(id.to_bytes(1, "big"))
+        msg.extend(self.ID.encode())
         msg.extend(self.channel.to_bytes(1, "big"))
         msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
                                                          format=serialization.PublicFormat.OpenSSH))
@@ -257,9 +259,9 @@ class Radio:
                     msg = self.decrypt(msg[0:-16], msg[-16:])
                 if msg is not None:
                     # Data is valid, process as normal
-                    print("Message Type: " + msg[0:1].decode())
-                    if msg[0:1].decode() == '0':
-                        print("Got broadcast from: " + msg[1:4].decode() + " on channel: " + msg[-2:].decode())
+                    print("Message Type: ", int.from_bytes(msg[0:1], "big"))
+                    if msg[0:1].to_bytes(1, "big") == 1:
+                        print("Got broadcast from: " + msg[1:4].decode() + " on channel: ", int.from_bytes(msg[4], "big"))
                         self.target = msg[1:4].decode()
                         # Step 3, extract public key
                         self.targetKey = serialization.load_ssh_public_key(msg[5:])
@@ -267,10 +269,10 @@ class Radio:
                         # Got a broadcast, respond with ID, pubKey
 
                         msg = bytearray()
-                        msg.extend('1'.encode())
-                        msg.extend(self.messageID.to_bytes(2, "big"))  # 2 byte value, ID's from 0-65536
                         msg.extend(self.ID.encode())
-                        sendp(self.dataFrame / Raw(load=msg), iface=self.interface)
+                        msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
+                                                                         format=serialization.PublicFormat.OpenSSH))
+                        self.send(1, msg)
                         # Finally, create a timer object with the ID of the message
                         timer = self.timerPool.submit(self.timer, 1, self.messageID, str(self.ID) + str(
                             self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
@@ -290,17 +292,17 @@ class Radio:
 
                         # Now wait for the target to respond first, goto step 5
 
-                    elif msg[0:1].decode() == '1':
+                    elif msg[0:1].to_bytes(1, "big") == 2:
                         # send back an ACK message
                         resp = bytearray()
                         resp.extend(b'0')
                         resp.extend(msg[1:3])
-                        self.send(4, resp)
+                        self.send(4, resp, False)
 
                         print("Got response from " + msg[3:5].decode())
                         self.target = msg[3:5].decode()
                         # Step 4, generate shared secret
-                        self.targetKey = serialization.load_ssh_public_key(msg[4:])
+                        self.targetKey = serialization.load_ssh_public_key(msg[5:])
                         sharedSecret = self.ownKey.exchange(ec.ECDH(), self.targetKey)
                         self.masterSecret = HKDF(algorithm=hashes.SHA256(), length=32, salt=None,
                                                  info=b'handshake data', ).derive(sharedSecret)
@@ -308,9 +310,13 @@ class Radio:
                         self.currentSecret = scrypt(self.masterSecret, '0', 32, 1024, 8, 1)
                         # Now broadcast an encrypted message back to the other device
                         # This message consists of the concatenation of the device ID's and the current channel
-                        self.send(2, self.target + self.ID + self.channel, False)
+                        msg = bytearray()
+                        msg.extend(self.target.encode())
+                        msg.extend(self.ID.encode())
+                        msg.extend(self.channel.to_bytes(1,"big"))
+                        self.send(2, msg)
                         print("Sent cipher authentication msg")
-                    elif msg[0:1].decode() == '2':
+                    elif msg[0:1].to_bytes(1, "big") == 2:
                         # Step 5, verify that the encryption keys are correct
                         print("STEP 2")
                         if msg[1:].decode() == self.ID + self.target + self.channel:
