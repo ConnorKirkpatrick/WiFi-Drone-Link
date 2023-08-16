@@ -65,12 +65,12 @@ class Radio:
         self.currentSecret = None
         self.eEngine = None
         # Startup the radio listener thread
-        # listener = threading.Thread(target=self.wirelessReceiver)
-        # listener.start()
+        listener = threading.Thread(target=self.wirelessReceiver)
+        listener.start()
         # Upon initiating, attempt to connect to a second radio in order to exchange keys
         # Communications start by default on channel 36
         # Message ID's: 1 is handshake,
-        # self.handshake()
+        self.handshake()
 
     def encrypt(self, message):
         """
