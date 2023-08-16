@@ -1,4 +1,4 @@
-ID:GSC
+ID:GCS
 Interface:wlan1
 Channel:36
 RecPort:5000

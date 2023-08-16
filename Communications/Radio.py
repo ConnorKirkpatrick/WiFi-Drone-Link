@@ -261,7 +261,7 @@ class Radio:
                     # Data is valid, process as normal
                     print("Message Type: ", int.from_bytes(msg[0:1], "big"))
                     if int.from_bytes(msg[0:1], "big") == 0:
-                        print("Got broadcast from: " + msg[1:4].decode() + " on channel: ", int.from_bytes(msg[4], "big"))
+                        print("Got broadcast from: " + msg[1:4].decode() + " on channel: ", msg[4])
                         self.target = msg[1:4].decode()
                         # Step 3, extract public key
                         self.targetKey = serialization.load_ssh_public_key(msg[5:])
@@ -299,10 +299,10 @@ class Radio:
                         resp.extend(msg[1:3])
                         self.send(4, resp, False)
 
-                        print("Got response from " + msg[3:5].decode())
-                        self.target = msg[3:5].decode()
+                        print("Got response from " + msg[3:6].decode())
+                        self.target = msg[3:6].decode()
                         # Step 4, generate shared secret
-                        self.targetKey = serialization.load_ssh_public_key(msg[5:])
+                        self.targetKey = serialization.load_ssh_public_key(msg[6:])
                         sharedSecret = self.ownKey.exchange(ec.ECDH(), self.targetKey)
                         self.masterSecret = HKDF(algorithm=hashes.SHA256(), length=32, salt=None,
                                                  info=b'handshake data', ).derive(sharedSecret)
@@ -319,11 +319,14 @@ class Radio:
                     elif int.from_bytes(msg[0:1], "big") == 2:
                         # Step 5, verify that the encryption keys are correct
                         print("STEP 2")
-                        if msg[1:].decode() == self.ID + self.target + self.channel:
+                        if msg[3:-1].decode() == self.ID + self.target and int.from_bytes(msg[-1], "big") == self.channel:
                             print("KEY GOOD")
                             # Now respond with the same but inverted message
-                            data = '2' + self.target + self.ID + self.channel
-                            sendp(self.dataFrame / Raw(load=self.encrypt(data)), iface=self.interface)
+                            msg = bytearray()
+                            msg.extend(self.target.encode())
+                            msg.extend(self.ID.encode())
+                            msg.extend(self.channel.to_bytes(1, "big"))
+                            self.send(2, msg)
                             break
                         else:
                             print("KEY BAD")
