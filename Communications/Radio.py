@@ -294,8 +294,9 @@ class Radio:
 
                     elif int.from_bytes(msg[0:1], "big") == 1:
                         # send back an ACK message
+                        code = 0
                         resp = bytearray()
-                        resp.extend(b'0')
+                        resp.extend(code.to_bytes(1, "big"))
                         resp.extend(msg[1:3])
                         self.send(4, resp, False)
 
@@ -319,8 +320,9 @@ class Radio:
                     elif int.from_bytes(msg[0:1], "big") == 2:
                         # Step 5, verify that the encryption keys are correct
                         print("STEP 2")
+                        code = 0
                         resp = bytearray()
-                        resp.extend(b'0')
+                        resp.extend(code.to_bytes(1,"big"))
                         resp.extend(msg[1:3])
                         self.send(4, resp, False)
                         if msg[3:-1].decode() == self.ID + self.target and msg[-1] == self.channel:
