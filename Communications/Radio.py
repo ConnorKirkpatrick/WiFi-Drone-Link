@@ -260,7 +260,7 @@ class Radio:
                 if msg is not None:
                     # Data is valid, process as normal
                     print("Message Type: ", int.from_bytes(msg[0:1], "big"))
-                    if msg[0:1].to_bytes(1, "big") == 1:
+                    if int.from_bytes(msg[0:1], "big") == 0:
                         print("Got broadcast from: " + msg[1:4].decode() + " on channel: ", int.from_bytes(msg[4], "big"))
                         self.target = msg[1:4].decode()
                         # Step 3, extract public key
@@ -292,7 +292,7 @@ class Radio:
 
                         # Now wait for the target to respond first, goto step 5
 
-                    elif msg[0:1].to_bytes(1, "big") == 2:
+                    elif int.from_bytes(msg[0:1], "big") == 1:
                         # send back an ACK message
                         resp = bytearray()
                         resp.extend(b'0')
@@ -316,7 +316,7 @@ class Radio:
                         msg.extend(self.channel.to_bytes(1,"big"))
                         self.send(2, msg)
                         print("Sent cipher authentication msg")
-                    elif msg[0:1].to_bytes(1, "big") == 2:
+                    elif int.from_bytes(msg[0:1], "big") == 2:
                         # Step 5, verify that the encryption keys are correct
                         print("STEP 2")
                         if msg[1:].decode() == self.ID + self.target + self.channel:
