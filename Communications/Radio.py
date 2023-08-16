@@ -188,10 +188,17 @@ class Radio:
         asyncio.run(self.reSend(messageType, messageID, messageContents))
 
     def send(self, messageType, messageContents, needAck=True):
+        """
+
+        :param messageType: [Int]
+        :param messageContents: [ByteArray]
+        :param needAck: [Bool]
+        :return:
+        """
         encodedMsg = bytearray()
         encodedMsg.extend(messageType.to_bytes(1, "big"))
         encodedMsg.extend(self.messageID.to_bytes(2, "big"))  # 2 byte value, ID's from 0-65536
-        encodedMsg.extend(bytes(messageContents, 'utf-8'))
+        encodedMsg.extend(messageContents)
 
         if self.currentSecret is None:
             # No set encryption, broadcast in the clear
@@ -255,7 +262,7 @@ class Radio:
                         print("Got broadcast from: " + msg[1:4].decode() + " on channel: " + msg[-2:].decode())
                         self.target = msg[1:4].decode()
                         # Step 3, extract public key
-                        self.targetKey = serialization.load_ssh_public_key(msg[4:-2])
+                        self.targetKey = serialization.load_ssh_public_key(msg[5:])
 
                         # Got a broadcast, respond with ID, pubKey
 
@@ -287,7 +294,7 @@ class Radio:
                         # send back an ACK message
                         resp = bytearray()
                         resp.extend(b'0')
-                        resp.extend(msg[1:3].to_bytes(2, "big"))
+                        resp.extend(msg[1:3])
                         self.send(4, resp)
 
                         print("Got response from " + msg[3:5].decode())
