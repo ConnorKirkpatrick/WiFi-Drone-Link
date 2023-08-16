@@ -259,7 +259,7 @@ class Radio:
                     msg = self.decrypt(msg[0:-16], msg[-16:])
                 if msg is not None:
                     # Data is valid, process as normal
-                    print("Message Type: ", int.from_bytes(msg[0:1], "big"))
+                    print("Message Type: ", msg[0])
                     if int.from_bytes(msg[0:1], "big") == 0:
                         print("Got broadcast from: " + msg[1:4].decode() + " on channel: ", msg[4])
                         self.target = msg[1:4].decode()
@@ -319,7 +319,7 @@ class Radio:
                     elif int.from_bytes(msg[0:1], "big") == 2:
                         # Step 5, verify that the encryption keys are correct
                         print("STEP 2")
-                        if msg[3:-1].decode() == self.ID + self.target and int.from_bytes(msg[-1], "big") == self.channel:
+                        if msg[3:-1].decode() == self.ID + self.target and msg[-1] == self.channel:
                             print("KEY GOOD")
                             # Now respond with the same but inverted message
                             msg = bytearray()
@@ -341,4 +341,4 @@ class Radio:
                                                                              format=serialization.PublicFormat.OpenSSH))
                             msg.extend(self.channel.encode())
                             sendp(self.dataFrame / Raw(load=msg), iface=self.interface)
-                        exit()
+        exit()
