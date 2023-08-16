@@ -1,4 +1,5 @@
 import asyncio, socket, threading, time
+from concurrent.futures import ThreadPoolExecutor
 
 from scapy.all import sendp, sniff
 from scapy.layers.dot11 import Dot11, Dot11QoS, RadioTap
@@ -15,18 +16,19 @@ from Crypto.Cipher import ChaCha20_Poly1305
 from Crypto.Random import get_random_bytes
 from Crypto.Protocol.KDF import bcrypt, scrypt
 
-from main import inputStream
 
-
-
+# from main import inputStream
 
 
 class Radio:
     def inputHandler(self, pkt):
         # Possibly add address filtering at this layer
         self.input.put(pkt)
+
     def wirelessReceiver(self):
         sniff(iface='wlan1', prn=self.inputHandler, filter="udp and host 127.0.0.1 and dst port " + str(self.recPort))
+
+    timerPool = ThreadPoolExecutor(10)  # create a threadpool of 10 threads
 
     def __init__(self, vehicle, output_Stream, input_Stream, ID, channel, recPort, destPort, interface="wlan1"):
         self.vehicle = vehicle
@@ -48,10 +50,11 @@ class Radio:
         # Identity variables
         self.ID = ID
         self.target = None
-        self.channel = channel
+        self.channel = int(channel)
         # Management stores
         self.reserve = {}
         self.timers = {}
+        self.messageID = 0
         # Cryptography variables
         # Exchange variables
         self.curve = ec.SECP256R1
@@ -62,12 +65,12 @@ class Radio:
         self.currentSecret = None
         self.eEngine = None
         # Startup the radio listener thread
-        listener = threading.Thread(target=self.wirelessReceiver)
-        listener.start()
+        # listener = threading.Thread(target=self.wirelessReceiver)
+        # listener.start()
         # Upon initiating, attempt to connect to a second radio in order to exchange keys
         # Communications start by default on channel 36
         # Message ID's: 1 is handshake,
-        self.handshake()
+        # self.handshake()
 
     def encrypt(self, message):
         """
@@ -120,10 +123,12 @@ class Radio:
     async def rx(self):
         """
         The main Receiver for the application will check the type of data received and then handle it accordingly
-        The only 2 data types we should receive during main runtime is types 4 and 5. These are either standard mavlink
+        The only 2 data types we should receive during main runtime is types 3 and 4. These are either standard mavlink
         messages, or configuration packages
         Mavlink packages are simply stripped of our ID information and then passed to the QGC app socket
         Management packets are TODO
+
+        For messages when key is NONE, we dont decrypt, else decrypt
         :return:
         """
         # QGroundControl binds to port 14550 upon start, thus forward all of our received messages to there.
@@ -131,18 +136,30 @@ class Radio:
         while True:
             if not self.input.empty():
                 msg = self.input.get(False)
-                if msg[0].decode == '4':
+                if self.currentSecret is not None:
+                    self.decrypt(msg[0:-16], msg[-16:])
+                if int.from_bytes(msg[0], "big") == 0:
+                    # broadcast
+                    pass
+                if int.from_bytes(msg[0], "big") == 3:
                     # this message is a standard mavlink message, pass it on
-                    # Send the mavlink message to QGC excluding the message type and ID
-                    self.QGC_Socket.sendto(msg[4:], self.QGC_Addr)
+                    # Send the mavlink message to QGC excluding the message type[0] and ID[1-2]
+                    self.QGC_Socket.sendto(msg[3:].decode('utf-8'), self.QGC_Addr)
                     # For the drone, this information needs to be decoded then sent via serial to the flight controller
                     # This means that the drone should also respond with an ACK with the mavlink ID
                     #   ACK messages are a management message type, thus with ID 5
-                elif msg[0].decode == '5':
+                elif int.from_bytes(msg[0], "big") == 4:
                     # code 5 is a management frame, this controls settings and retransmissions
+                    # message format type[0], ID[1-2],managed type[3],context[4...]
+                    # managed type 0 is an ACK, does not need an ACK response
+
                     # if we get an ACK for an ID, we search the reserve for this item and pull its timer object out
                     #   we then terminate the timer before deleting the message from the reserve
                     # TODO
+                    if int.from_bytes(msg[3], "big") == 0:
+                        # Got ACK
+                        key = int.from_bytes(msg[4:], "big")
+                        self.timers[key].cancel()
                     pass
 
     async def self_RX(self):
@@ -165,6 +182,44 @@ class Radio:
             await asyncio.sleep(0.01)
         pass
 
+    def timer(self, messageType, messageID, messageContents):
+        time.sleep(0.1)
+        print("Timer triggered")
+        asyncio.run(self.reSend(messageType, messageID, messageContents))
+
+    def send(self, messageType, messageContents, needAck=True):
+        encodedMsg = bytearray()
+        encodedMsg.extend(messageType.to_bytes(1, "big"))
+        encodedMsg.extend(self.messageID.to_bytes(2, "big"))  # 2 byte value, ID's from 0-65536
+        encodedMsg.extend(bytes(messageContents, 'utf-8'))
+
+        if self.currentSecret is None:
+            # No set encryption, broadcast in the clear
+            sendp(self.dataFrame / Raw(load=encodedMsg), iface=self.interface)
+            pass
+        else:
+            # sendp(self.dataFrame / Raw(load=self.encrypt(encodedMsg)), iface=self.interface)
+            pass
+        if needAck:
+            # Finally, create a timer object with the ID of the message
+            timer = self.timerPool.submit(self.timer, messageType, self.messageID, messageContents)
+            self.timers[self.messageID] = timer
+            # increment the counter, so it is ready for the next message
+        self.messageID += 1
+
+    async def reSend(self, messageType, ID, messageContents):
+        encodedMsg = bytearray()
+        encodedMsg.extend(messageType.to_bytes(1, "big"))
+        encodedMsg.extend(ID.to_bytes(2, "big"))  # 2 byte value, ID's from 0-65536
+        encodedMsg.extend(bytes(messageContents, 'utf-8'))
+        if self.currentSecret is None:
+            # No set encryption, broadcast in the clear
+            # sendp(self.dataFrame / Raw(load=encodedMsg), iface=self.interface)
+            pass
+        else:
+            # sendp(self.dataFrame / Raw(load=self.encrypt(encodedMsg)), iface=self.interface)
+            pass
+
     def handshake(self):
         # ID is of size 3 FIXED
         # Step 0, generate keys
@@ -178,12 +233,12 @@ class Radio:
         # Initial handshake, broadcast your identity, public key, and channel
 
         # This can be augmented with signatures linked to the ID, fixed message is encrypted using their private key
-        # which we check we can decrypt with their public key
         msg = bytearray()
         msg.extend(('0' + self.ID).encode())
+        msg.extend(self.channel.to_bytes(1, "big"))
         msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
                                                          format=serialization.PublicFormat.OpenSSH))
-        msg.extend(self.channel.encode())
+
         sendp(self.dataFrame / Raw(load=msg), iface=self.interface)
         # Step 2, listen for either a broadcast or broadcast response
         while True:
@@ -193,11 +248,7 @@ class Radio:
                 if self.currentSecret is not None:
                     # if a key is active, try to decrypt the message
                     msg = self.decrypt(msg[0:-16], msg[-16:])
-
-                if msg is None:
-                    # we check if the message did not decrypt
-                    pass
-                else:
+                if msg is not None:
                     # Data is valid, process as normal
                     print("Message Type: " + msg[0:1].decode())
                     if msg[0:1].decode() == '0':
@@ -207,11 +258,19 @@ class Radio:
                         self.targetKey = serialization.load_ssh_public_key(msg[4:-2])
 
                         # Got a broadcast, respond with ID, pubKey
+
                         msg = bytearray()
-                        msg.extend(('1' + self.ID).encode())
-                        msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
-                                                                         format=serialization.PublicFormat.OpenSSH))
+                        msg.extend('1'.encode())
+                        msg.extend(self.messageID.to_bytes(2, "big"))  # 2 byte value, ID's from 0-65536
+                        msg.extend(self.ID.encode())
                         sendp(self.dataFrame / Raw(load=msg), iface=self.interface)
+                        # Finally, create a timer object with the ID of the message
+                        timer = self.timerPool.submit(self.timer, 1, self.messageID, str(self.ID) + str(
+                            self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
+                                                                  format=serialization.PublicFormat.OpenSSH)))
+                        self.timers[self.messageID] = timer
+                        # increment the counter, so it is ready for the next message
+                        self.messageID += 1
                         print("Responded with own data....")
 
                         # Generate initial shared secret
@@ -225,8 +284,14 @@ class Radio:
                         # Now wait for the target to respond first, goto step 5
 
                     elif msg[0:1].decode() == '1':
-                        print("Got response from " + msg[1:4].decode())
-                        self.target = msg[1:4].decode()
+                        # send back an ACK message
+                        resp = bytearray()
+                        resp.extend(b'0')
+                        resp.extend(msg[1:3].to_bytes(2, "big"))
+                        self.send(4, resp)
+
+                        print("Got response from " + msg[3:5].decode())
+                        self.target = msg[3:5].decode()
                         # Step 4, generate shared secret
                         self.targetKey = serialization.load_ssh_public_key(msg[4:])
                         sharedSecret = self.ownKey.exchange(ec.ECDH(), self.targetKey)
@@ -236,8 +301,7 @@ class Radio:
                         self.currentSecret = scrypt(self.masterSecret, '0', 32, 1024, 8, 1)
                         # Now broadcast an encrypted message back to the other device
                         # This message consists of the concatenation of the device ID's and the current channel
-                        data = '2' + self.target + self.ID + self.channel
-                        sendp(self.dataFrame / Raw(load=self.encrypt(data)), iface=self.interface)
+                        self.send(2, self.target + self.ID + self.channel, False)
                         print("Sent cipher authentication msg")
                     elif msg[0:1].decode() == '2':
                         # Step 5, verify that the encryption keys are correct
