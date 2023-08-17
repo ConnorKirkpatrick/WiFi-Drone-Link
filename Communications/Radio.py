@@ -159,6 +159,8 @@ class Radio:
                         key = int.from_bytes(msg[4:], "big")
                         self.timers[key].cancel()
                     pass
+            else:
+                await asyncio.sleep(0.01)
 
     async def self_RX(self):
         """
@@ -170,20 +172,23 @@ class Radio:
         """
         TX_Bridge = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         TX_Bridge.bind(("127.0.0.1", 52796))  # bind to the local port QGC will send data to
+        TX_Bridge.setblocking(False)
         while True:
-            msg = bytearray(284)
-            TX_Bridge.recv_into(msg)
-            msg = msg.rstrip(b'\x00')
-            msg = b'4' + self.ID.encode() + msg
-            # push the QGC message to the wireless interface with added message code and self ID
-            self.outputStream.write(msg)
-            await asyncio.sleep(0.01)
+            try:
+                msg = bytearray(284)
+                TX_Bridge.recv_into(msg)
+                msg = msg.rstrip(b'\x00')
+                msg = b'4' + self.ID.encode() + msg
+                # push the QGC message to the wireless interface with added message code and self ID
+                self.outputStream.write(msg)
+            except Exception:
+                await asyncio.sleep(0.01)
         pass
 
     async def timer(self, messageType, messageID, messageContents, duration=0.1):
         await asyncio.sleep(duration)
         print("Timer triggered")
-        asyncio.run(self.reSend(messageType, messageID, messageContents))
+        asyncio.create_task(self.reSend(messageType, messageID, messageContents))
 
     def send(self, messageType, messageContents, needAck=True):
         """
@@ -200,10 +205,10 @@ class Radio:
 
         if self.currentSecret is None:
             # No set encryption, broadcast in the clear
-            sendp(self.dataFrame / Raw(load=encodedMsg), iface=self.interface)
+            sendp(self.dataFrame / Raw(load=encodedMsg), iface=self.interface, verbose=0)
             pass
         else:
-            sendp(self.dataFrame / Raw(load=self.encrypt(encodedMsg)), iface=self.interface)
+            sendp(self.dataFrame / Raw(load=self.encrypt(encodedMsg)), iface=self.interface, verbose=0)
             pass
         if needAck:
             # Finally, create a timer object with the ID of the message
@@ -219,10 +224,10 @@ class Radio:
         encodedMsg.extend(messageContents)
         if self.currentSecret is None:
             # No set encryption, broadcast in the clear
-            sendp(self.dataFrame / Raw(load=encodedMsg), iface=self.interface)
+            sendp(self.dataFrame / Raw(load=encodedMsg), iface=self.interface,verbose=0)
             pass
         else:
-            sendp(self.dataFrame / Raw(load=self.encrypt(encodedMsg)), iface=self.interface)
+            sendp(self.dataFrame / Raw(load=self.encrypt(encodedMsg)), iface=self.interface,verbose=0)
             pass
 
     async def handshake(self):
@@ -258,13 +263,13 @@ class Radio:
                     # Data is valid, process as normal
                     print("Message Type: ", msg[0])
                     if int.from_bytes(msg[0:1], "big") == 0:
-                        print("Got broadcast from: " + msg[1:4].decode() + " on channel: ", msg[4])
+                        print("Got broadcast from: " + msg[4:7].decode() + " on channel: ", msg[7])
                         self.timers["handshake"] = asyncio.create_task(self.resetHandshake())
 
 
-                        self.target = msg[1:4].decode()
+                        self.target = msg[4:7].decode()
                         # Step 3, extract public key
-                        self.targetKey = serialization.load_ssh_public_key(msg[5:])
+                        self.targetKey = serialization.load_ssh_public_key(msg[8:])
 
                         # Got a broadcast, respond with ID, pubKey
 
@@ -273,13 +278,6 @@ class Radio:
                         msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
                                                                          format=serialization.PublicFormat.OpenSSH))
                         self.send(1, msg)
-                        # Finally, create a timer object with the ID of the message
-                        timer = asyncio.create_task(self.timer(1, self.messageID, str(self.ID) + str(
-                            self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
-                                                                  format=serialization.PublicFormat.OpenSSH))))
-                        self.timers[self.messageID] = timer
-                        # increment the counter, so it is ready for the next message
-                        self.messageID += 1
                         print("Responded with own data....")
 
                         # Generate initial shared secret
@@ -349,7 +347,8 @@ class Radio:
                                 print("Terminated timer successfully")
                             else:
                                 print("Terminated timer failed")
-
+            else:
+                await asyncio.sleep(0.01)
         # upon completing the handshake, terminate the handshake timeout timer
         self.timers["handshake"].cancel()
         exit()
