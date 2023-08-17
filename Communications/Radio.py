@@ -28,8 +28,6 @@ class Radio:
     def wirelessReceiver(self):
         sniff(iface='wlan1', prn=self.inputHandler, filter="udp and host 127.0.0.1 and dst port " + str(self.recPort))
 
-    timerPool = ThreadPoolExecutor(10)  # create a threadpool of 10 threads
-
     def __init__(self, vehicle, output_Stream, input_Stream, ID, channel, recPort, destPort, interface="wlan1"):
         self.vehicle = vehicle
         self.interface = interface
@@ -70,7 +68,7 @@ class Radio:
         # Upon initiating, attempt to connect to a second radio in order to exchange keys
         # Communications start by default on channel 36
         # Message ID's: 1 is handshake,
-        self.handshake()
+        asyncio.create_task(self.handshake())
 
     def encrypt(self, message):
         """
@@ -182,8 +180,8 @@ class Radio:
             await asyncio.sleep(0.01)
         pass
 
-    async def timer(self, messageType, messageID, messageContents):
-        await asyncio.sleep(0.1)
+    async def timer(self, messageType, messageID, messageContents, duration=0.1):
+        await asyncio.sleep(duration)
         print("Timer triggered")
         asyncio.run(self.reSend(messageType, messageID, messageContents))
 
@@ -209,7 +207,6 @@ class Radio:
             pass
         if needAck:
             # Finally, create a timer object with the ID of the message
-            #timer = self.timerPool.submit(self.timer, messageType, self.messageID, messageContents)
             timer = asyncio.create_task(self.timer(messageType, self.messageID, messageContents))
             self.timers[self.messageID] = timer
             # increment the counter, so it is ready for the next message
@@ -228,7 +225,7 @@ class Radio:
             sendp(self.dataFrame / Raw(load=self.encrypt(encodedMsg)), iface=self.interface)
             pass
 
-    def handshake(self):
+    async def handshake(self):
         # ID is of size 3 FIXED
         # Step 0, generate keys
         # self.keys = ECC.generate(curve='p256')
@@ -248,8 +245,7 @@ class Radio:
         msg.extend(self.channel.to_bytes(1, "big"))
         msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
                                                          format=serialization.PublicFormat.OpenSSH))
-
-        sendp(self.dataFrame / Raw(load=msg), iface=self.interface)
+        self.send(0, msg, False)
         # Step 2, listen for either a broadcast or broadcast response
         while True:
             if not self.input.empty():
@@ -263,6 +259,9 @@ class Radio:
                     print("Message Type: ", msg[0])
                     if int.from_bytes(msg[0:1], "big") == 0:
                         print("Got broadcast from: " + msg[1:4].decode() + " on channel: ", msg[4])
+                        self.timers["handshake"] = asyncio.create_task(self.resetHandshake())
+
+
                         self.target = msg[1:4].decode()
                         # Step 3, extract public key
                         self.targetKey = serialization.load_ssh_public_key(msg[5:])
@@ -275,9 +274,6 @@ class Radio:
                                                                          format=serialization.PublicFormat.OpenSSH))
                         self.send(1, msg)
                         # Finally, create a timer object with the ID of the message
-                        #timer = self.timerPool.submit(self.timer, 1, self.messageID, str(self.ID) + str(
-                            #self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
-                                                                  #format=serialization.PublicFormat.OpenSSH)))
                         timer = asyncio.create_task(self.timer(1, self.messageID, str(self.ID) + str(
                             self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
                                                                   format=serialization.PublicFormat.OpenSSH))))
@@ -305,6 +301,8 @@ class Radio:
                         self.send(4, resp, False)
 
                         print("Got response from " + msg[3:6].decode())
+                        self.timers["handshake"] = asyncio.create_task(self.resetHandshake())
+
                         self.target = msg[3:6].decode()
                         # Step 4, generate shared secret
                         self.targetKey = serialization.load_ssh_public_key(msg[6:])
@@ -318,7 +316,7 @@ class Radio:
                         msg = bytearray()
                         msg.extend(self.target.encode())
                         msg.extend(self.ID.encode())
-                        msg.extend(self.channel.to_bytes(1,"big"))
+                        msg.extend(self.channel.to_bytes(1, "big"))
                         self.send(2, msg)
                         print("Sent cipher authentication msg")
                     elif int.from_bytes(msg[0:1], "big") == 2:
@@ -326,7 +324,7 @@ class Radio:
                         print("STEP 2")
                         code = 0
                         resp = bytearray()
-                        resp.extend(code.to_bytes(1,"big"))
+                        resp.extend(code.to_bytes(1, "big"))
                         resp.extend(msg[1:3])
                         self.send(4, resp, False)
                         if msg[3:-1].decode() == self.ID + self.target and msg[-1] == self.channel:
@@ -341,7 +339,7 @@ class Radio:
                         else:
                             print("KEY BAD")
                             # for a bad key scenario, we are unable to send an ACK back
-                            # once the other side timesout on resending, they should reset their keys and restart
+                            # once the other side times out on resending, they should reset their keys and restart
                     if int.from_bytes(msg[0:1], "big") == 4:
                         # management message
                         if msg[3] == 0:
@@ -352,4 +350,20 @@ class Radio:
                             else:
                                 print("Terminated timer failed")
 
+        # upon completing the handshake, terminate the handshake timeout timer
+        self.timers["handshake"].cancel()
         exit()
+
+    async def resetHandshake(self):
+        await asyncio.sleep(5)  # 5 seconds allocated for a successful handshake
+        self.masterSecret = None
+        self.currentSecret = None
+        self.target = None
+        self.targetKey = None
+
+        msg = bytearray()
+        msg.extend(self.ID.encode())
+        msg.extend(self.channel.to_bytes(1, "big"))
+        msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
+                                                         format=serialization.PublicFormat.OpenSSH))
+        self.send(0, msg, False)
