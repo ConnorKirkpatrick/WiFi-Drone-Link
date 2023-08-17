@@ -182,8 +182,8 @@ class Radio:
             await asyncio.sleep(0.01)
         pass
 
-    def timer(self, messageType, messageID, messageContents):
-        time.sleep(0.1)
+    async def timer(self, messageType, messageID, messageContents):
+        await asyncio.sleep(0.1)
         print("Timer triggered")
         asyncio.run(self.reSend(messageType, messageID, messageContents))
 
@@ -209,7 +209,8 @@ class Radio:
             pass
         if needAck:
             # Finally, create a timer object with the ID of the message
-            timer = self.timerPool.submit(self.timer, messageType, self.messageID, messageContents)
+            #timer = self.timerPool.submit(self.timer, messageType, self.messageID, messageContents)
+            timer = asyncio.create_task(self.timer(messageType, self.messageID, messageContents))
             self.timers[self.messageID] = timer
             # increment the counter, so it is ready for the next message
         self.messageID += 1
@@ -274,9 +275,12 @@ class Radio:
                                                                          format=serialization.PublicFormat.OpenSSH))
                         self.send(1, msg)
                         # Finally, create a timer object with the ID of the message
-                        timer = self.timerPool.submit(self.timer, 1, self.messageID, str(self.ID) + str(
+                        #timer = self.timerPool.submit(self.timer, 1, self.messageID, str(self.ID) + str(
+                            #self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
+                                                                  #format=serialization.PublicFormat.OpenSSH)))
+                        timer = asyncio.create_task(self.timer(1, self.messageID, str(self.ID) + str(
                             self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
-                                                                  format=serialization.PublicFormat.OpenSSH)))
+                                                                  format=serialization.PublicFormat.OpenSSH))))
                         self.timers[self.messageID] = timer
                         # increment the counter, so it is ready for the next message
                         self.messageID += 1
