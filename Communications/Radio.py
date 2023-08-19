@@ -209,6 +209,7 @@ class Radio:
                             msg.extend(self.ID.encode())
                             msg.extend(self.channel.to_bytes(1, "big"))
                             self.send(2, msg)
+                            print(self.timers)
                             break
                         else:
                             print("KEY BAD")
@@ -228,10 +229,13 @@ class Radio:
                         if msg[3] == 0:
                             # Got ACK
                             key = int.from_bytes(msg[4:], "big")
-                            if self.timers[key].cancel():
-                                print("Terminated timer successfully")
-                            else:
-                                print("Terminated timer failed")
+                            try:
+                                if self.timers[key].cancel():
+                                    print("Terminated timer successfully")
+                                else:
+                                    print("Terminated timer failed")
+                            except KeyError:
+                                pass
             else:
                 await asyncio.sleep(0.01)
 
