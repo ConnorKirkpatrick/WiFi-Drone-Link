@@ -117,7 +117,12 @@ class Radio:
                 we should also create and store a time in the retransmission store for this message
                 If the timer triggers, it pulls the message from the linked store and re-transmits it
                 """
-
+    def ack(self,ID):
+        code = 0
+        resp = bytearray()
+        resp.extend(code.to_bytes(1, "big"))
+        resp.extend(ID)
+        self.send(4, resp, False)
     async def rx(self):
         """
         The main Receiver for the application will check the type of data received and then handle it accordingly
@@ -146,14 +151,8 @@ class Radio:
                     if decMsg is not None:  # if decrypted properly, make msg the decrypted value
                         msg = decMsg
                         # this means that if we receive data such as ACK after keys are set, we can still process them
-                # Respond with an ACK message
-                code = 0
-                resp = bytearray()
-                resp.extend(code.to_bytes(1, "big"))
-                resp.extend(msg[1:3])
-                self.send(4, resp, False)
-
                 if int.from_bytes(msg[0:1], "big") == 0 and not self.handshakeFlag:
+                    self.ack(msg[1:3])
                     print("Got broadcast from: " + msg[4:7].decode() + " on channel: ", msg[7])
                     self.timers["handshake"] = asyncio.create_task(self.resetHandshake())
 
@@ -181,6 +180,7 @@ class Radio:
                     # Now wait for the target to respond first, goto step 5
 
                 elif int.from_bytes(msg[0:1], "big") == 1 and not self.handshakeFlag:
+                    self.ack(msg[1:3])
                     print("Got response from " + msg[3:6].decode())
                     self.timers["handshake"] = asyncio.create_task(self.resetHandshake())
 
@@ -202,6 +202,7 @@ class Radio:
                     print("Sent cipher authentication msg")
 
                 elif int.from_bytes(msg[0:1], "big") == 2 and not self.handshakeFlag:
+                    self.ack(msg[1:3])
                     # Step 5, verify that the encryption keys are correct
                     print("STEP 2")
                     if msg[3:-1].decode() == self.ID + self.target and msg[-1] == self.channel:
@@ -215,13 +216,13 @@ class Radio:
                         msg.extend(self.channel.to_bytes(1, "big"))
                         self.send(2, msg)
                         print(self.timers)
-                        break
                     else:
                         print("KEY BAD")
                         # for a bad key scenario, we are unable to send an ACK back
                         # once the other side times out on resending, they should reset their keys and restart
 
                 elif int.from_bytes(msg[0:1], "big") == 3:
+                    self.ack(msg[1:3])
                     # this message is a standard mavlink message, pass it on
                     # Send the mavlink message to QGC excluding the message type[0] and ID[1-2]
                     self.QGC_Socket.sendto(msg[3:].decode('utf-8'), self.QGC_Addr)
@@ -241,6 +242,8 @@ class Radio:
                                 print("Terminated timer failed")
                         except KeyError:
                             pass
+                    else:
+                        self.ack(msg[1:3])
             else:
                 await asyncio.sleep(0.01)
 
