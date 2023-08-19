@@ -53,6 +53,7 @@ class Radio:
         self.reserve = {}
         self.timers = {}
         self.messageID = 0
+        self.handshakeFlag = False
         # Cryptography variables
         # Exchange variables
         self.curve = ec.SECP256R1
@@ -139,103 +140,107 @@ class Radio:
         while True:
             if not self.input.empty():
                 msg = self.input.get(False)
+                # need way to check both encrypted and decrypted
                 if self.currentSecret is not None:
-                    msg = self.decrypt(msg[0:-16], msg[-16:])
-                if msg is not None:
-                    # Respond with an ACK message
-                    code = 0
-                    resp = bytearray()
-                    resp.extend(code.to_bytes(1, "big"))
-                    resp.extend(msg[1:3])
-                    self.send(4, resp, False)
+                    decMsg = self.decrypt(msg[0:-16], msg[-16:])
+                    if decMsg is not None:  # if decrypted properly, make msg the decrypted value
+                        msg = decMsg
+                        # this means that if we receive data such as ACK after keys are set, we can still process them
+                # Respond with an ACK message
+                code = 0
+                resp = bytearray()
+                resp.extend(code.to_bytes(1, "big"))
+                resp.extend(msg[1:3])
+                self.send(4, resp, False)
 
-                    if int.from_bytes(msg[0:1], "big") == 0:
-                        print("Got broadcast from: " + msg[4:7].decode() + " on channel: ", msg[7])
-                        self.timers["handshake"] = asyncio.create_task(self.resetHandshake())
+                if int.from_bytes(msg[0:1], "big") == 0 and not self.handshakeFlag:
+                    print("Got broadcast from: " + msg[4:7].decode() + " on channel: ", msg[7])
+                    self.timers["handshake"] = asyncio.create_task(self.resetHandshake())
 
-                        self.target = msg[4:7].decode()
-                        # Step 3, extract public key
-                        self.targetKey = serialization.load_ssh_public_key(msg[8:])
+                    self.target = msg[4:7].decode()
+                    # Step 3, extract public key
+                    self.targetKey = serialization.load_ssh_public_key(msg[8:])
 
-                        # Got a broadcast, respond with ID, pubKey
+                    # Got a broadcast, respond with ID, pubKey
 
-                        msg = bytearray()
-                        msg.extend(self.ID.encode())
-                        msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
-                                                                         format=serialization.PublicFormat.OpenSSH))
-                        self.send(1, msg)
-                        print("Responded with own data....")
+                    msg = bytearray()
+                    msg.extend(self.ID.encode())
+                    msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
+                                                                     format=serialization.PublicFormat.OpenSSH))
+                    self.send(1, msg)
+                    print("Responded with own data....")
 
-                        # Generate initial shared secret
-                        sharedSecret = self.ownKey.exchange(ec.ECDH(), self.targetKey)
-                        self.masterSecret = HKDF(algorithm=hashes.SHA256(), length=32, salt=None,
-                                                 info=b'handshake data', ).derive(sharedSecret)
+                    # Generate initial shared secret
+                    sharedSecret = self.ownKey.exchange(ec.ECDH(), self.targetKey)
+                    self.masterSecret = HKDF(algorithm=hashes.SHA256(), length=32, salt=None,
+                                             info=b'handshake data', ).derive(sharedSecret)
 
-                        # Generate a proper key, using a fixed salt for now, possibility of adding a future change
-                        self.currentSecret = scrypt(self.masterSecret, '0', 32, 1024, 8, 1)
+                    # Generate a proper key, using a fixed salt for now, possibility of adding a future change
+                    self.currentSecret = scrypt(self.masterSecret, '0', 32, 1024, 8, 1)
 
-                        # Now wait for the target to respond first, goto step 5
+                    # Now wait for the target to respond first, goto step 5
 
-                    elif int.from_bytes(msg[0:1], "big") == 1:
-                        print("Got response from " + msg[3:6].decode())
-                        self.timers["handshake"] = asyncio.create_task(self.resetHandshake())
+                elif int.from_bytes(msg[0:1], "big") == 1 and not self.handshakeFlag:
+                    print("Got response from " + msg[3:6].decode())
+                    self.timers["handshake"] = asyncio.create_task(self.resetHandshake())
 
-                        self.target = msg[3:6].decode()
-                        # Step 4, generate shared secret
-                        self.targetKey = serialization.load_ssh_public_key(msg[6:])
-                        sharedSecret = self.ownKey.exchange(ec.ECDH(), self.targetKey)
-                        self.masterSecret = HKDF(algorithm=hashes.SHA256(), length=32, salt=None,
-                                                 info=b'handshake data', ).derive(sharedSecret)
-                        # Generate a proper key, using a fixed salt for now, possibility of adding a future change
-                        self.currentSecret = scrypt(self.masterSecret, '0', 32, 1024, 8, 1)
-                        # Now broadcast an encrypted message back to the other device
-                        # This message consists of the concatenation of the device ID's and the current channel
+                    self.target = msg[3:6].decode()
+                    # Step 4, generate shared secret
+                    self.targetKey = serialization.load_ssh_public_key(msg[6:])
+                    sharedSecret = self.ownKey.exchange(ec.ECDH(), self.targetKey)
+                    self.masterSecret = HKDF(algorithm=hashes.SHA256(), length=32, salt=None,
+                                             info=b'handshake data', ).derive(sharedSecret)
+                    # Generate a proper key, using a fixed salt for now, possibility of adding a future change
+                    self.currentSecret = scrypt(self.masterSecret, '0', 32, 1024, 8, 1)
+                    # Now broadcast an encrypted message back to the other device
+                    # This message consists of the concatenation of the device ID's and the current channel
+                    msg = bytearray()
+                    msg.extend(self.target.encode())
+                    msg.extend(self.ID.encode())
+                    msg.extend(self.channel.to_bytes(1, "big"))
+                    self.send(2, msg)
+                    print("Sent cipher authentication msg")
+
+                elif int.from_bytes(msg[0:1], "big") == 2 and not self.handshakeFlag:
+                    # Step 5, verify that the encryption keys are correct
+                    print("STEP 2")
+                    if msg[3:-1].decode() == self.ID + self.target and msg[-1] == self.channel:
+                        print("KEY GOOD")
+                        self.handshakeFlag = True
+                        self.timers["handshake"].cancel()
+                        # Now respond with the same but inverted message
                         msg = bytearray()
                         msg.extend(self.target.encode())
                         msg.extend(self.ID.encode())
                         msg.extend(self.channel.to_bytes(1, "big"))
                         self.send(2, msg)
-                        print("Sent cipher authentication msg")
+                        print(self.timers)
+                        break
+                    else:
+                        print("KEY BAD")
+                        # for a bad key scenario, we are unable to send an ACK back
+                        # once the other side times out on resending, they should reset their keys and restart
 
-                    elif int.from_bytes(msg[0:1], "big") == 2:
-                        # Step 5, verify that the encryption keys are correct
-                        print("STEP 2")
-                        if msg[3:-1].decode() == self.ID + self.target and msg[-1] == self.channel:
-                            print("KEY GOOD")
-                            self.timers["handshake"].cancel()
-                            # Now respond with the same but inverted message
-                            msg = bytearray()
-                            msg.extend(self.target.encode())
-                            msg.extend(self.ID.encode())
-                            msg.extend(self.channel.to_bytes(1, "big"))
-                            self.send(2, msg)
-                            print(self.timers)
-                            break
-                        else:
-                            print("KEY BAD")
-                            # for a bad key scenario, we are unable to send an ACK back
-                            # once the other side times out on resending, they should reset their keys and restart
+                elif int.from_bytes(msg[0:1], "big") == 3:
+                    # this message is a standard mavlink message, pass it on
+                    # Send the mavlink message to QGC excluding the message type[0] and ID[1-2]
+                    self.QGC_Socket.sendto(msg[3:].decode('utf-8'), self.QGC_Addr)
+                    # For the drone, this information needs to be decoded then sent via serial to the flight controller
+                    # This means that the drone should also respond with an ACK with the mavlink ID
+                    #   ACK messages are a management message type, thus with ID 5
 
-                    elif int.from_bytes(msg[0:1], "big") == 3:
-                        # this message is a standard mavlink message, pass it on
-                        # Send the mavlink message to QGC excluding the message type[0] and ID[1-2]
-                        self.QGC_Socket.sendto(msg[3:].decode('utf-8'), self.QGC_Addr)
-                        # For the drone, this information needs to be decoded then sent via serial to the flight controller
-                        # This means that the drone should also respond with an ACK with the mavlink ID
-                        #   ACK messages are a management message type, thus with ID 5
-
-                    elif int.from_bytes(msg[0:1], "big") == 4:
-                        # management message
-                        if msg[3] == 0:
-                            # Got ACK
-                            key = int.from_bytes(msg[4:], "big")
-                            try:
-                                if self.timers[key].cancel():
-                                    print("Terminated timer successfully")
-                                else:
-                                    print("Terminated timer failed")
-                            except KeyError:
-                                pass
+                elif int.from_bytes(msg[0:1], "big") == 4:
+                    # management message
+                    if msg[3] == 0:
+                        # Got ACK
+                        key = int.from_bytes(msg[4:], "big")
+                        try:
+                            if self.timers[key].cancel():
+                                print("Terminated timer successfully")
+                            else:
+                                print("Terminated timer failed")
+                        except KeyError:
+                            pass
             else:
                 await asyncio.sleep(0.01)
 
