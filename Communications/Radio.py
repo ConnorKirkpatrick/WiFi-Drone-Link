@@ -23,7 +23,7 @@ from Crypto.Protocol.KDF import bcrypt, scrypt
 class Radio:
     def inputHandler(self, pkt):
         # Possibly add address filtering at this layer
-        self.input.put(pkt)
+        self.input.put(pkt[Raw].load)
 
     def wirelessReceiver(self):
         sniff(iface='wlan1', prn=self.inputHandler, filter="udp and host 127.0.0.1 and dst port " + str(self.recPort))
