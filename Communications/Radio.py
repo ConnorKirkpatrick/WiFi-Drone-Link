@@ -205,17 +205,22 @@ class Radio:
                     self.ack(msg[1:3])
                     # Step 5, verify that the encryption keys are correct
                     print("STEP 2")
-                    if msg[3:-1].decode() == self.ID + self.target and msg[-1] == self.channel:
+                    if msg[3:-1].decode() == self.ID + self.target and msg[-1] == self.channel: # confirm and respond
                         print("KEY GOOD")
                         self.handshakeFlag = True
                         self.timers["handshake"].cancel()
                         # Now respond with the same but inverted message
+                        zero = 0
                         msg = bytearray()
                         msg.extend(self.target.encode())
                         msg.extend(self.ID.encode())
-                        msg.extend(self.channel.to_bytes(1, "big"))
+                        msg.extend(zero.to_bytes(1,"big"))
                         self.send(2, msg)
                         print(self.timers)
+                    elif msg[3:-1].decode() == self.ID + self.target and msg[-1] == 0: # confirm without response
+                        print("KEY GOOD")
+                        self.handshakeFlag = True
+                        self.timers["handshake"].cancel()
                     else:
                         print("KEY BAD")
                         # for a bad key scenario, we are unable to send an ACK back
@@ -236,10 +241,11 @@ class Radio:
                         # Got ACK
                         key = int.from_bytes(msg[4:], "big")
                         try:
-                            if self.timers[key].cancel():
-                                print("Terminated timer successfully")
-                            else:
-                                print("Terminated timer failed")
+                            timer = self.timers.pop(key)
+                            while not timer.cancel():
+                                await asyncio.sleep(0.001)
+                            print("Terminated timer successfully")
+
                         except KeyError:
                             pass
                     else:
