@@ -101,28 +101,26 @@ class Radio:
         and then send them via the wireless interface
         :return:
         """
-        # print("Started")
         while True:
             msg = await self.outputStream.read()
             if msg is None:
                 await asyncio.sleep(0.01)
             else:
-                data = self.dataFrame / Raw(load=msg)
-                # await packageHandler(data)
                 # TODO: Wrap this data correctly with management IDs
-                # sendp(self.dataFrame / Raw(load=msg), iface=self.interface)
-
+                self.send(3, msg)
                 """ 
-                If the packet is type 4 (mavlink) we should store it in the reserve under the mavlink ID
+                If the packet is type 3 (mavlink) we should store it in the reserve under the mavlink ID
                 we should also create and store a time in the retransmission store for this message
                 If the timer triggers, it pulls the message from the linked store and re-transmits it
                 """
-    def ack(self,ID):
+
+    def ack(self, ID):
         code = 0
         resp = bytearray()
         resp.extend(code.to_bytes(1, "big"))
         resp.extend(ID)
         self.send(4, resp, False)
+
     async def rx(self):
         """
         The main Receiver for the application will check the type of data received and then handle it accordingly
@@ -205,7 +203,7 @@ class Radio:
                     self.ack(msg[1:3])
                     # Step 5, verify that the encryption keys are correct
                     print("STEP 2")
-                    if msg[3:-1].decode() == self.ID + self.target and msg[-1] == self.channel: # confirm and respond
+                    if msg[3:-1].decode() == self.ID + self.target and msg[-1] == self.channel:  # confirm and respond
                         print("KEY GOOD")
                         self.handshakeFlag = True
                         self.timers["handshake"].cancel()
@@ -214,10 +212,9 @@ class Radio:
                         msg = bytearray()
                         msg.extend(self.target.encode())
                         msg.extend(self.ID.encode())
-                        msg.extend(zero.to_bytes(1,"big"))
+                        msg.extend(zero.to_bytes(1, "big"))
                         self.send(2, msg)
-                        print(self.timers)
-                    elif msg[3:-1].decode() == self.ID + self.target and msg[-1] == 0: # confirm without response
+                    elif msg[3:-1].decode() == self.ID + self.target and msg[-1] == 0:  # confirm without response
                         print("KEY GOOD")
                         self.handshakeFlag = True
                         self.timers["handshake"].cancel()
@@ -245,7 +242,6 @@ class Radio:
                             while not timer.cancel():
                                 await asyncio.sleep(0.001)
                             print("Terminated timer successfully")
-
                         except KeyError:
                             pass
                     else:
