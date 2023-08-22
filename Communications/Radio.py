@@ -223,7 +223,7 @@ class Radio:
                         # for a bad key scenario, we are unable to send an ACK back
                         # once the other side times out on resending, they should reset their keys and restart
 
-                elif int.from_bytes(msg[0:1], "big") == 3:
+                elif int.from_bytes(msg[0:1], "big") == 3 and self.handshakeFlag:
                     self.ack(msg[1:3])
                     # this message is a standard mavlink message, pass it on
                     # Send the mavlink message to QGC excluding the message type[0] and ID[1-2]
@@ -391,3 +391,6 @@ class Radio:
         msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
                                                          format=serialization.PublicFormat.OpenSSH))
         self.send(0, msg, False)
+
+    def getHandshakeStatus(self):
+        return self.handshakeFlag
