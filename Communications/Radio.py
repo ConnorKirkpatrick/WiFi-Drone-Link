@@ -23,7 +23,7 @@ from Crypto.Protocol.KDF import bcrypt, scrypt
 class Radio:
     def inputHandler(self, pkt):
         # Possibly add address filtering at this layer
-        self.input.put(pkt[Raw].load)
+        self.input.put_nowait(pkt[Raw].load)
 
     def wirelessReceiver(self):
         sniff(iface='wlan1', prn=self.inputHandler, filter="udp and host 127.0.0.1 and dst port " + str(self.recPort))
@@ -196,7 +196,7 @@ class Radio:
                     msg.extend(self.target.encode())
                     msg.extend(self.ID.encode())
                     msg.extend(self.channel.to_bytes(1, "big"))
-                    self.send(2, msg)
+                    await self.send(2, msg)
                     print("Sent cipher authentication msg")
 
                 elif int.from_bytes(msg[0:1], "big") == 2 and not self.handshakeFlag:
@@ -240,7 +240,8 @@ class Radio:
                         try:
                             timer = self.timers.pop(key)
                             while not timer.cancel():
-                                await asyncio.sleep(0.001)
+                                timer = self.timers.pop(key)
+                                await asyncio.sleep(0.0001)
                             print("Terminated timer successfully")
                         except KeyError:
                             pass
