@@ -64,8 +64,8 @@ class Radio:
         self.currentSecret = None
         self.eEngine = None
         # Startup the radio listener thread
-        listener = threading.Thread(target=self.wirelessReceiver)
-        listener.start()
+        self.listener = threading.Thread(target=self.wirelessReceiver)
+        self.listener.start()
         # Upon initiating, attempt to connect to a second radio in order to exchange keys
         # Communications start by default on channel 36
         # Message ID's: 1 is handshake,
@@ -107,7 +107,7 @@ class Radio:
                 await asyncio.sleep(0.01)
             else:
                 # TODO: Wrap this data correctly with management IDs
-                self.send(3, msg)
+                await self.send(3, msg)
                 """ 
                 If the packet is type 3 (mavlink) we should store it in the reserve under the mavlink ID
                 we should also create and store a time in the retransmission store for this message
@@ -164,7 +164,7 @@ class Radio:
                     msg.extend(self.ID.encode())
                     msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
                                                                      format=serialization.PublicFormat.OpenSSH))
-                    self.send(1, msg)
+                    await self.send(1, msg)
                     print("Responded with own data....")
 
                     # Generate initial shared secret
@@ -213,7 +213,7 @@ class Radio:
                         msg.extend(self.target.encode())
                         msg.extend(self.ID.encode())
                         msg.extend(zero.to_bytes(1, "big"))
-                        self.send(2, msg)
+                        await self.send(2, msg)
                     elif msg[3:-1].decode() == self.ID + self.target and msg[-1] == 0:  # confirm without response
                         print("KEY GOOD")
                         self.handshakeFlag = True
@@ -272,7 +272,7 @@ class Radio:
                 await asyncio.sleep(0.01)
         pass
 
-    def send(self, messageType, messageContents, needAck=True):
+    async def send(self, messageType, messageContents, needAck=True):
         """
         This method manages sending data via SCAPY in the correct way.
         Serialisation:
@@ -349,7 +349,8 @@ class Radio:
         """
         await asyncio.sleep(duration)
         print("Timer triggered")
-        asyncio.create_task(self.reSend(messageType, messageID, messageContents, attempts))
+        await self.reSend(messageType, messageID, messageContents, attempts)
+        await asyncio.sleep(0.0001)
 
     async def handshake(self):
         """
@@ -370,7 +371,7 @@ class Radio:
         msg.extend(self.channel.to_bytes(1, "big"))
         msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
                                                          format=serialization.PublicFormat.OpenSSH))
-        self.send(0, msg, False)
+        await self.send(0, msg, False)
 
     async def resetHandshake(self):
         """
@@ -390,7 +391,7 @@ class Radio:
         msg.extend(self.channel.to_bytes(1, "big"))
         msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
                                                          format=serialization.PublicFormat.OpenSSH))
-        self.send(0, msg, False)
+        await self.send(0, msg, False)
 
     def getHandshakeStatus(self):
         return self.handshakeFlag
