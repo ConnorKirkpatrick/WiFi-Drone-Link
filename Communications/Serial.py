@@ -1,15 +1,43 @@
+import asyncio
+import time
+
 import serial
 
 
 class Serial_Connection:
     def __init__(self, port):
-        self.serial = serial.Serial(port, 115200, timeout=1)
+        self.serial = serial.Serial(port, 115200, timeout=0.1)
+        self.initiate()
+        self.write(0, "YYYYY")
+        print("SERIAL READY")
+        while True:
+            if self.serial.inWaiting() > 0:
+                print(self.serial.read())
 
     def read(self):
-        return self.serial.readline()
+        if self.serial.inWaiting() > 0:
+            size = self.serial.read(1)
+            data = self.serial.read(int.from_bytes(size, "big"))
+            print(data)
+            return data
+        else:
+            return False
 
-    def write(self, msg):
-        self.serial.write(msg)
+    def write(self, ID, msg):
+        size = msg.__len__() + 1
+        data = bytearray()
+        data.extend(size.to_bytes(1, "big"))
+        data.extend(ID.to_bytes(1, "big"))
+        data.extend(bytes(msg, "utf-8"))
+        self.serial.write(bytes(data))
+
+    def initiate(self):
+        while True:
+            data = self.read()
+            if data is not False:
+                if data[0] == 0 and data[1:] == b'XXXXX':
+                    break
+            time.sleep(0.001)
 
 
 """
