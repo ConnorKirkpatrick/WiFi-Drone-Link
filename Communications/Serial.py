@@ -5,20 +5,18 @@ import serial
 
 
 class Serial_Connection:
-    def __init__(self, port):
+    def __init__(self, port, messenger):
         self.serial = serial.Serial(port, 115200, timeout=0.1)
+        self.messenger = messenger
         self.initiate()
         self.write(0, "YYYYY")
         print("SERIAL READY")
-        while True:
-            if self.serial.inWaiting() > 0:
-                print(self.serial.read())
+        asyncio.create_task(self.handler())
 
     def read(self):
         if self.serial.inWaiting() > 0:
             size = self.serial.read(1)
             data = self.serial.read(int.from_bytes(size, "big"))
-            print(data)
             return data
         else:
             return False
@@ -38,6 +36,15 @@ class Serial_Connection:
                 if data[0] == 0 and data[1:] == b'XXXXX':
                     break
             time.sleep(0.001)
+
+    async def handler(self):
+        while True:
+            data = self.read()
+            if not data:
+                await asyncio.sleep(0.001)
+            elif data[0] == 1:
+                # this is as status text message
+                await self.messenger.statustext(data[1:])
 
 
 """
