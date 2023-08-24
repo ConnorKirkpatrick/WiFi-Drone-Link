@@ -6,6 +6,7 @@ from pymavlink.dialects.v20 import common as mavlink2
 class messages:
     def __init__(self, vehicle):
         self.vehicle = vehicle
+        asyncio.create_task(self.heartBeat())
 
     async def heartBeat(self):
         """
