@@ -107,7 +107,10 @@ class Radio:
                 await asyncio.sleep(0.01)
             else:
                 # TODO: Wrap this data correctly with management IDs
-                await self.send(3, msg)
+                if(msg[3] == 0):
+                    await self.send(3, msg,False) # don't need an ack for the heartbeat
+                else:
+                    await self.send(3, msg)
                 """ 
                 If the packet is type 3 (mavlink) we should store it in the reserve under the mavlink ID
                 we should also create and store a time in the retransmission store for this message
