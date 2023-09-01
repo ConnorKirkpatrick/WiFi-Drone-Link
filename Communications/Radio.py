@@ -122,7 +122,7 @@ class Radio:
         resp = bytearray()
         resp.extend(code.to_bytes(1, "big"))
         resp.extend(ID)
-        self.send(4, resp, False)
+        asyncio.create_task(self.send(4, resp, False))
 
     async def rx(self):
         """
@@ -230,7 +230,7 @@ class Radio:
                     self.ack(msg[1:3])
                     # this message is a standard mavlink message, pass it on
                     # Send the mavlink message to QGC excluding the message type[0] and ID[1-2]
-                    self.QGC_Socket.sendto(msg[3:].decode('utf-8'), self.QGC_Addr)
+                    self.QGC_Socket.sendto(msg[3:], self.QGC_Addr)
                     # For the drone, this information needs to be decoded then sent via serial to the flight controller
                     # This means that the drone should also respond with an ACK with the mavlink ID
                     #   ACK messages are a management message type, thus with ID 5

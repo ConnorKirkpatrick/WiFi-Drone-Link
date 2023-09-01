@@ -45,6 +45,8 @@ class Serial_Connection:
             elif data[0] == 1:
                 # this is as status text message
                 await self.messenger.statustext(data[1:])
+            elif data[0] == 2:
+                await self.messenger.GlobalPosition(data[1:])
 
 
 """
