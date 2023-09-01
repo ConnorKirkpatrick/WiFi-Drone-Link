@@ -51,4 +51,8 @@ class messages:
         vy = int.from_bytes(message[22:24],"big")
         vz = int.from_bytes(message[24:26],"big")
         hdg = int.from_bytes(message[26:28],"big")
+        print("Time: ",time)
+        print("Lat: ",lat)
+        print("Lng: ",lng)
+        print("alt: ",alt)
         self.vehicle.global_position_int_send(time,lat,lng,alt,ralt,vx,vy,vz,hdg)
