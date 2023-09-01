@@ -42,7 +42,7 @@ async def main():
     elif ID.__contains__("DR"):
         print("Detected as Drone")
         while not TX.getHandshakeStatus():
-            await asyncio.sleep(0.001) # block to prevent sending mav messages before they can be accepted
+            await asyncio.sleep(0.001)  # block to prevent sending mav messages before they can be accepted
         # Drone tasks, this involves things like publishing the heartbeat and telemetry
         # Either the FC will provide messages as self timed intervals, or we request messages vai timed intervals on the
         # RPI

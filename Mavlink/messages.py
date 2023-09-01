@@ -40,3 +40,15 @@ class messages:
     async def GPS(self):
         while True:
             self.vehicle.global_position_int_send(2000, 513438508, -6432654, 110, 0, 0, 0, 0, 90)
+
+    async def GlobalPosition(self,message):
+        time = int.from_bytes(message[0:4],"big")
+        lat = int.from_bytes(message[4:8],"big")
+        lng = int.from_bytes(message[8:12],"big")
+        alt = int.from_bytes(message[12:16],"big")
+        ralt = int.from_bytes(message[16:20],"big")
+        vx = int.from_bytes(message[20:22],"big")
+        vy = int.from_bytes(message[22:24],"big")
+        vz = int.from_bytes(message[24:26],"big")
+        hdg = int.from_bytes(message[26:28],"big")
+        self.vehicle.global_position_int_send(time,lat,lng,alt,ralt,vx,vy,vz,hdg)
