@@ -47,6 +47,10 @@ class Serial_Connection:
                 await self.messenger.statustext(data[1:])
             elif data[0] == 2:
                 await self.messenger.GlobalPosition(data[1:])
+            elif data[0] == 3:
+                await self.messenger.GPS_Raw(data[1:])
+            elif data[0] == 4:
+                await self.messenger.Attitude(data[1:])
 
 
 """
