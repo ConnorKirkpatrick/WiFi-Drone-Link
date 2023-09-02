@@ -1,4 +1,5 @@
 import asyncio
+import struct
 
 from pymavlink.dialects.v20 import common as mavlink2
 
@@ -42,17 +43,42 @@ class messages:
             self.vehicle.global_position_int_send(2000, 513438508, -6432654, 110, 0, 0, 0, 0, 90)
 
     async def GlobalPosition(self,message):
-        time = int.from_bytes(message[0:4],"big")
-        lat = int.from_bytes(message[4:8],"big")
-        lng = int.from_bytes(message[8:12],"big")
-        alt = int.from_bytes(message[12:16],"big")
-        ralt = int.from_bytes(message[16:20],"big")
-        vx = int.from_bytes(message[20:22],"big")
-        vy = int.from_bytes(message[22:24],"big")
-        vz = int.from_bytes(message[24:26],"big")
-        hdg = int.from_bytes(message[26:28],"big")
-        print("Time: ",time)
-        print("Lat: ",lat)
-        print("Lng: ",lng)
-        print("alt: ",alt)
+        time = int.from_bytes(message[0:4],"little",signed=False)
+        lat = int.from_bytes(message[4:8],"little",signed=True)
+        lng = int.from_bytes(message[8:12],"little",signed=True)
+        alt = int.from_bytes(message[12:16],"little",signed=True)
+        ralt = int.from_bytes(message[16:20],"little",signed=True)
+        vx = int.from_bytes(message[20:22],"little",signed=True)
+        vy = int.from_bytes(message[22:24],"little",signed=True)
+        vz = int.from_bytes(message[24:26],"little",signed=True)
+        hdg = int.from_bytes(message[26:28],"little",signed=False)
         self.vehicle.global_position_int_send(time,lat,lng,alt,ralt,vx,vy,vz,hdg)
+
+    async def Attitude(self,message):
+        time = int.from_bytes(message[0:4],"little",signed=False)
+        roll = struct.unpack("f",message[4:8])
+        pitch = struct.unpack("f", message[8:12])
+        yaw = struct.unpack("f", message[12:16])
+
+        rollR = struct.unpack("f", message[16:20])
+        pitchR = struct.unpack("f", message[20:24])
+        yawR = struct.unpack("f", message[24:28])
+        self.vehicle.attitude_send(time,roll,pitch,yaw,rollR,pitchR,yawR)
+
+    async def GPS_Raw(self, message):
+        time = int.from_bytes(message[0:8],"little",signed=False)
+        fix = time = int.from_bytes(message[8],"little",signed=False)
+        lat = int.from_bytes(message[9:13],"little",signed=True)
+        lng = int.from_bytes(message[13:17],"little",signed=True)
+        alt = int.from_bytes(message[17:21], "little", signed=True)
+        hdop = int.from_bytes(message[21:23], "little", signed=False)
+        vdop = int.from_bytes(message[23:25], "little", signed=False)
+        crs = int.from_bytes(message[25:27],"little",signed=False)
+        sats = int.from_bytes(message[27],"little",signed=False)
+        Ealt = int.from_bytes(message[28:32],"little",signed=True)
+        hu = int.from_bytes(message[32:36],"little",signed=False)
+        vu = int.from_bytes(message[36:40], "little", signed=False)
+        velU = int.from_bytes(message[40:44],"little",signed=False)
+        headU = int.from_bytes(message[44:48],"little",signed=False)
+        yaw = int.from_bytes(message[48:50], "little", signed=False)
+        self.vehicle.gps_raw_int_send(time,fix,lat,lng,alt,hdop,vdop,crs,sats,Ealt,hu,vu,velU,headU,yaw)
