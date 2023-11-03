@@ -52,7 +52,7 @@ class Serial_Connection:
             elif data[0] == 4:
                 await self.messenger.Attitude(data[1:])
 
-
+#Todo: If gyro fails, disconnect serial and power cycle ports. Do the same if gyro calibrate takes >15s
 """
     Arduino FCS telemetry rates:
         GPS: 1hz
