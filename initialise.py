@@ -1,4 +1,4 @@
-import sys, subprocess
+import sys, subprocess, time
 
 
 def bToString(arg):
@@ -26,5 +26,7 @@ def initialiseWiFi(wifiAdaptor='wlan1'):
     #        break
     # now set the device to monitor mode and to use channel 36
     subprocess.check_output(['sudo', 'iw', 'dev', wifiAdaptor, 'set', 'type', 'monitor'])
+    time.sleep(0.1)
     subprocess.check_output(['sudo', 'ip', 'link', 'set', wifiAdaptor, 'up'])
+    time.sleep(0.1)
     subprocess.check_output(['sudo', 'iw', 'dev', wifiAdaptor, 'set', 'channel', '36'])
