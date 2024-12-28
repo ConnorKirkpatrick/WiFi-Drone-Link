@@ -56,7 +56,7 @@ class Radio:
         self.handshakeFlag = False
         # Cryptography variables
         # Exchange variables
-        self.curve = ec.SECP256R1
+        self.curve = ec.SECP256R1()
         self.ownKey = None
         self.targetKey = None
         self.masterSecret = None
@@ -107,8 +107,8 @@ class Radio:
                 await asyncio.sleep(0.01)
             else:
                 # TODO: Wrap this data correctly with management IDs
-                if(msg[3] == 0):
-                    await self.send(3, msg,False) # don't need an ack for the heartbeat
+                if (msg[3] == 0):
+                    await self.send(3, msg, False)  # don't need an ack for the heartbeat
                 else:
                     await self.send(3, msg)
                 """ 
@@ -153,6 +153,7 @@ class Radio:
                         msg = decMsg
                         # this means that if we receive data such as ACK after keys are set, we can still process them
                 if int.from_bytes(msg[0:1], "big") == 0 and not self.handshakeFlag:
+                    # Received broadcast message, respond with our key and ID data
                     self.ack(msg[1:3])
                     print("Got broadcast from: " + msg[4:7].decode() + " on channel: ", msg[7])
                     self.timers["handshake"] = asyncio.create_task(self.resetHandshake())
@@ -181,6 +182,7 @@ class Radio:
                     # Now wait for the target to respond first, goto step 5
 
                 elif int.from_bytes(msg[0:1], "big") == 1 and not self.handshakeFlag:
+                    # Received broadcast response, generate derived key and send auth message
                     self.ack(msg[1:3])
                     print("Got response from " + msg[3:6].decode())
                     self.timers["handshake"] = asyncio.create_task(self.resetHandshake())
@@ -199,7 +201,7 @@ class Radio:
                     msg.extend(self.target.encode())
                     msg.extend(self.ID.encode())
                     msg.extend(self.channel.to_bytes(1, "big"))
-                    await self.send(2, msg)
+                    await self.send(2, msg, False) # No auth needed, if there is any response it is an auth
                     print("Sent cipher authentication msg")
 
                 elif int.from_bytes(msg[0:1], "big") == 2 and not self.handshakeFlag:
@@ -283,7 +285,7 @@ class Radio:
             [0] : The first byte is always the packet type, this can be 0-4, representing handshake packets 0-2, or
             mavlink (3), or management (4) frames
             [1,2] : The second and third bytes are the ID values for the packet, allowing each to be uniquely identified
-            [3-] : bytes 3 onwards is the main content of the packet
+            [3:-1] : bytes 3 onwards is the main content of the packet
         for each packet sent, we can select if it needs an acknowledgment message. If this is true, as it is by default,
         the method will create a new asynchronous task that will trigger the re-send method with the same data after a
         designated time. If an ACK is received before this time, the object can be fetched from the self.timers
@@ -351,6 +353,7 @@ class Radio:
         :param attempts: [Int] The number of times to try to re-send
         :return:
         """
+        # TOD: Check why the channel value of the broadcast disappears when re-sending
         await asyncio.sleep(duration)
         print("Timer triggered")
         await self.reSend(messageType, messageID, messageContents, attempts)
