@@ -25,6 +25,8 @@ def initialiseWiFi(wifiAdaptor='wlan1'):
     #        subprocess.run(['sudo', 'ip', 'link', 'set', adapter.split(" ")[0], 'name', 'wlan1'])
     #        break
     # now set the device to monitor mode and to use channel 36
+    subprocess.check_output(['sudo', 'ip', 'link', 'set', wifiAdaptor, 'down'])
+    time.sleep(0.1)
     subprocess.check_output(['sudo', 'iw', wifiAdaptor, 'set', 'monitor', 'none'])
     time.sleep(0.1)
     subprocess.check_output(['sudo', 'ip', 'link', 'set', wifiAdaptor, 'up'])
