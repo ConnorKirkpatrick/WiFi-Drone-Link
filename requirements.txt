@@ -4,3 +4,4 @@ pymavlink
 scapy
 cryptography
 pycryptodome
+serial
