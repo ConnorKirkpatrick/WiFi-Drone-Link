@@ -1,0 +1,4 @@
+pymavlink
+scapy
+cryptography
+pycryptodome
