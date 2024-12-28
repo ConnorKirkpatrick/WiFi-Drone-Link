@@ -1,3 +1,5 @@
+future
+lxml
 pymavlink
 scapy
 cryptography
