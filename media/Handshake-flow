@@ -5,7 +5,7 @@
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
         <mxCell id="gH5dls468rusLnsO9dOk-1" value="" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="20" y="50" width="1230" height="350" as="geometry" />
+          <mxGeometry x="20" y="50" width="850" height="350" as="geometry" />
         </mxCell>
         <mxCell id="gH5dls468rusLnsO9dOk-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="gH5dls468rusLnsO9dOk-2" target="gH5dls468rusLnsO9dOk-4" edge="1">
           <mxGeometry relative="1" as="geometry" />
@@ -57,6 +57,72 @@
         </mxCell>
         <mxCell id="gH5dls468rusLnsO9dOk-17" value="Decrypt challenge. proceed with normal comms" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
           <mxGeometry x="720" y="100" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-2" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="410" width="1560" height="350" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="DBn-zt4VTge_53nz-xYA-4" target="DBn-zt4VTge_53nz-xYA-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-4" value="Drone" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="450" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="DBn-zt4VTge_53nz-xYA-6" target="DBn-zt4VTge_53nz-xYA-10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-6" value="GCS" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="400" y="620" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="DBn-zt4VTge_53nz-xYA-8" target="DBn-zt4VTge_53nz-xYA-12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-8" value="Setup keys and radio" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="210" y="460" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="DBn-zt4VTge_53nz-xYA-10" target="DBn-zt4VTge_53nz-xYA-20">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-10" value="Setup keys and radio" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="570" y="630" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-22" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="DBn-zt4VTge_53nz-xYA-12" target="DBn-zt4VTge_53nz-xYA-21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-12" value="Broadcast ID, channel, and pubKey" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="460" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="DBn-zt4VTge_53nz-xYA-14" target="DBn-zt4VTge_53nz-xYA-16">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-14" value="Respond with own key and ID. Derive key" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="890" y="630" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="DBn-zt4VTge_53nz-xYA-16" target="DBn-zt4VTge_53nz-xYA-18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-16" value="Derive key. Send encrypted challeng" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="460" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="DBn-zt4VTge_53nz-xYA-18" target="DBn-zt4VTge_53nz-xYA-19">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-18" value="Decrypt challenge, if valid respond with own challenge" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="630" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-19" value="Decrypt challenge. proceed with normal comms" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="460" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-27" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="DBn-zt4VTge_53nz-xYA-20" target="DBn-zt4VTge_53nz-xYA-21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-20" value="Broadcast new station message" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="730" y="630" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-26" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="DBn-zt4VTge_53nz-xYA-21" target="DBn-zt4VTge_53nz-xYA-14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DBn-zt4VTge_53nz-xYA-21" value="Broadcast ID, channel, and pubKey" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="890" y="460" width="120" height="60" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
