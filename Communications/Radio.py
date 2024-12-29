@@ -57,7 +57,8 @@ class Radio:
         # Cryptography variables
         # Exchange variables
         self.curve = ec.SECP256R1()
-        self.ownKey = None
+        # Step 0, generate keys
+        self.ownKey = ec.generate_private_key(self.curve)
         self.targetKey = None
         self.masterSecret = None
         # ChaCha20 variables
@@ -69,7 +70,9 @@ class Radio:
         # Upon initiating, attempt to connect to a second radio in order to exchange keys
         # Communications start by default on channel 36
         # Message ID's: 1 is handshake,
-        asyncio.create_task(self.handshake())
+        if ID != "GCS":  # only broadcast if you are a Drone
+            print("Sending broadcast")
+            asyncio.create_task(self.handshake())
 
     def encrypt(self, message):
         """
@@ -365,22 +368,19 @@ class Radio:
         Initially we simply create our own key pair and broadcast connection information in the clear
         :return:
         """
-        # Step 0, generate keys
-        self.ownKey = ec.generate_private_key(self.curve)
+
 
         # Step 1, broadcast information
         # Initial handshake, broadcast your identity, public key, and channel
         # This can be augmented with signatures linked to the ID, fixed message is encrypted using their private key
-        if self.ID != "GCS":
-            print("Sending broadcast")
-            msg = bytearray()
-            id = 0
-            msg.extend(id.to_bytes(1, "big"))
-            msg.extend(self.ID.encode())
-            msg.extend(self.channel.to_bytes(1, "big"))
-            msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
-                                                             format=serialization.PublicFormat.OpenSSH))
-            await self.send(0, msg, False)
+        msg = bytearray()
+        id = 0
+        msg.extend(id.to_bytes(1, "big"))
+        msg.extend(self.ID.encode())
+        msg.extend(self.channel.to_bytes(1, "big"))
+        msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
+                                                         format=serialization.PublicFormat.OpenSSH))
+        await self.send(0, msg, False)
 
     async def resetHandshake(self):
         """
