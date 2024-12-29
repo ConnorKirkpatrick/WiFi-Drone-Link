@@ -33,3 +33,4 @@ def initialiseWiFi(wifiAdaptor='wlan1'):
     print(subprocess.check_output(['ip', 'link', 'set', wifiAdaptor, 'up']))
     time.sleep(0.3)
     print(subprocess.check_output(['iw', 'dev', wifiAdaptor, 'set', 'channel', '36']))
+    time.sleep(1)
