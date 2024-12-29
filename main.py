@@ -1,3 +1,5 @@
+import multiprocessing.queues
+
 from pymavlink.dialects.v20 import common as mavlink2
 import asyncio, os, queue
 from Communications.Radio import Radio
@@ -7,7 +9,7 @@ from initialise import initialiseWiFi
 import messageStore
 from scapy.all import sniff
 
-inputStream = queue.Queue()
+inputStream = multiprocessing.queues.Queue()
 
 
 async def main():

@@ -69,7 +69,8 @@ class Radio:
         # Upon initiating, attempt to connect to a second radio in order to exchange keys
         # Communications start by default on channel 36
         # Message ID's: 1 is handshake,
-        asyncio.create_task(self.handshake())
+        if ID != "GCS":  # only broadcast if you are a Drone
+            asyncio.create_task(self.handshake())
 
     def encrypt(self, message):
         """
@@ -201,7 +202,7 @@ class Radio:
                     msg.extend(self.target.encode())
                     msg.extend(self.ID.encode())
                     msg.extend(self.channel.to_bytes(1, "big"))
-                    await self.send(2, msg, False) # No auth needed, if there is any response it is an auth
+                    await self.send(2, msg, False)  # No auth needed, if there is any response it is an auth
                     print("Sent cipher authentication msg")
 
                 elif int.from_bytes(msg[0:1], "big") == 2 and not self.handshakeFlag:
