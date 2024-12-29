@@ -14,7 +14,7 @@ inputStream = multiprocessing.Queue()
 
 async def main():
     print("Started")
-    # initialiseWiFi()
+    initialiseWiFi()
     os.environ["MAVLINK20"] = '1'
     # read settings from file
     config = open("config.txt", "r")
