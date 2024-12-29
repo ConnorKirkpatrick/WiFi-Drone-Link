@@ -210,7 +210,7 @@ class Radio:
                     # Step 5, verify that the encryption keys are correct
                     print("STEP 2")
                     if msg[3:-1].decode() == self.ID + self.target and msg[-1] == self.channel:  # confirm and respond
-                        print("KEY GOOD")
+                        print("KEY GOOD + RESPONDING")
                         self.handshakeFlag = True
                         self.timers["handshake"].cancel()
                         # Now respond with the same but inverted message
