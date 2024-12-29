@@ -70,6 +70,7 @@ class Radio:
         # Communications start by default on channel 36
         # Message ID's: 1 is handshake,
         if ID != "GCS":  # only broadcast if you are a Drone
+            print("Sending broadcast")
             asyncio.create_task(self.handshake())
 
     def encrypt(self, message):
