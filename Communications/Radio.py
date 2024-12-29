@@ -347,7 +347,7 @@ class Radio:
             timer = asyncio.create_task(self.timer(messageType, ID, messageContents, attempts))
             self.timers[self.messageID] = timer
 
-    async def timer(self, messageType, messageID, messageContents, duration=0.1, attempts=5):
+    async def timer(self, messageType, messageID, messageContents, duration=0.25, attempts=5):
         """
         The timer method allows us to create asynchronous tasks to trigger a re-send action if the other device does not
         acknowledge a message in time.
