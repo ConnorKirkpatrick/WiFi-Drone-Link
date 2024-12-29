@@ -1,6 +1,7 @@
 import asyncio, socket, threading, time
 from concurrent.futures import ThreadPoolExecutor
 
+import scapy.interfaces
 from scapy.all import sendp, sniff
 from scapy.layers.dot11 import Dot11, Dot11QoS, RadioTap
 from scapy.layers.inet import UDP, IP
@@ -26,6 +27,7 @@ class Radio:
         self.input.put_nowait(pkt[Raw].load)
 
     def wirelessReceiver(self):
+        scapy.interfaces.ifaces.reload()
         sniff(iface='wlan1', prn=self.inputHandler, filter="udp and host 127.0.0.1 and dst port " + str(self.recPort))
 
     def __init__(self, vehicle, output_Stream, input_Stream, ID, channel, recPort, destPort, interface="wlan1"):
