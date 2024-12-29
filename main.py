@@ -9,7 +9,7 @@ from initialise import initialiseWiFi
 import messageStore
 from scapy.all import sniff
 
-inputStream = multiprocessing.Queue()
+inputStream = queue.Queue()
 
 
 async def main():
