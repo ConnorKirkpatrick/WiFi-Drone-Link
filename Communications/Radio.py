@@ -26,8 +26,6 @@ class Radio:
         # Possibly add address filtering at this layer
         self.input.put_nowait(pkt[Raw].load)
 
-
-
     def wirelessReceiver(self):
         scapy.interfaces.ifaces.reload()
         sniff(iface='wlan1',
@@ -415,6 +413,7 @@ class Radio:
         return self.handshakeFlag
 
     def end(self):
+        print("Trying to end")
         self.running = False
         self.listener.join()
         print("Listener done")
