@@ -18,8 +18,8 @@ def initialiseWiFi(wifiAdaptor='wlan1'):
     deviceDetails = wifiDevice.split("ID")[1].strip()[0:9]
     deviceID, deviceAddr = deviceDetails.split(":")
     # Reset the USB mode to ensure it is working
-    subprocess.check_output(['usb_modeswitch', '-v', '0x' + deviceID, '-p', '0x' + deviceAddr, '--reset-usb'])
-    time.sleep(1)
+    #subprocess.check_output(['usb_modeswitch', '-v', '0x' + deviceID, '-p', '0x' + deviceAddr, '--reset-usb'])
+    #time.sleep(1)
     # Reset the random name to predictable
     adapters = bToString(subprocess.check_output(['iwconfig'], stderr=subprocess.DEVNULL)).split("\n\n")
     for adapter in adapters:
