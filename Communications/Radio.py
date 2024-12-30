@@ -43,7 +43,7 @@ class Radio:
                                             addr2="00:00:00:00:00:00",
                                             addr3="00:00:00:00:00:00",
                                             type=2,
-                                            subtype=8) / Dot11QoS() / LLC() / SNAP() / IP(src='127.0.0.1',
+                                            subtype=8) / Dot11QoS(Ack_Policy=1) / LLC() / SNAP() / IP(src='127.0.0.1',
                                                                                           dst='127.0.0.1') / \
                          UDP(sport=self.recPort, dport=self.destPort)
 
