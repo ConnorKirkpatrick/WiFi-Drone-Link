@@ -34,8 +34,8 @@ async def main():
 
     # Global tasks, start these for both ground station and drone
     #   Radio Tasks
-    asyncio.create_task(TX.tx())
-    asyncio.create_task(TX.rx())
+    tx = asyncio.create_task(TX.tx())
+    rx = asyncio.create_task(TX.rx())
     if ID == "GCS":
         print("Detected as GCS")
         # GCS tasks, this is the handlers to pass received messages to the mavlink socket and catch messages to transmit
@@ -58,11 +58,17 @@ async def main():
         #conn = "/dev/ttyACM0"
         #FC = Serial_Connection(conn, messenger)
 
-    print("Tasks created")
 
     while True:
-        await asyncio.sleep(1)
+        try:
+            await asyncio.sleep(1)
+        except asyncio.exceptions.CancelledError as e:
+            # handle graceful shutdown after user-interrupt here
+            # need to terminate the listener thread
+            rx.cancel()
+            break
 
+    print("Goodbye")
     # mav.gps_raw_int_send()
     # mav.attitude_send()
 

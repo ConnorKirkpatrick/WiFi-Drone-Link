@@ -26,9 +26,14 @@ class Radio:
         # Possibly add address filtering at this layer
         self.input.put_nowait(pkt[Raw].load)
 
+
+
     def wirelessReceiver(self):
         scapy.interfaces.ifaces.reload()
-        sniff(iface='wlan1', prn=self.inputHandler, filter="udp and host 127.0.0.1 and dst port " + str(self.recPort))
+        sniff(iface='wlan1',
+              prn=self.inputHandler,
+              filter="udp and host 127.0.0.1 and dst port " + str(self.recPort),
+              stop_filter=lambda x: self.running is False)
 
     def __init__(self, vehicle, output_Stream, input_Stream, ID, channel, recPort, destPort, interface="wlan1"):
         self.vehicle = vehicle
@@ -68,6 +73,7 @@ class Radio:
         self.eEngine = None
         # Startup the radio listener thread
         self.listener = threading.Thread(target=self.wirelessReceiver)
+        self.running = True
         self.listener.start()
         # Upon initiating, attempt to connect to a second radio in order to exchange keys
         # Communications start by default on channel 36
@@ -106,7 +112,7 @@ class Radio:
         and then send them via the wireless interface
         :return:
         """
-        while True:
+        while self.running:
             msg = await self.outputStream.read()
             if msg is None:
                 await asyncio.sleep(0.01)
@@ -148,7 +154,7 @@ class Radio:
         """
         # QGroundControl binds to port 14550 upon start, thus forward all of our received messages to there.
         # This method is used to capture the broadcast from the drone and hand it to the QGC program
-        while True:
+        while self.running:
             if not self.input.empty():
                 msg = self.input.get(False)
                 # need way to check both encrypted and decrypted
@@ -407,3 +413,8 @@ class Radio:
 
     def getHandshakeStatus(self):
         return self.handshakeFlag
+
+    def end(self):
+        self.running = False
+        self.listener.join()
+        print("Listener done")
