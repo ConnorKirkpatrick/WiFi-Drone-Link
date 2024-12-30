@@ -1,6 +1,7 @@
-import asyncio, socket, threading,  time, subprocess, errno
+import asyncio, socket, threading,  time, subprocess
 from concurrent.futures import ThreadPoolExecutor
-from socket import error as socket_error
+import warnings
+warnings.filterwarnings("error")
 
 import scapy.interfaces
 from scapy.all import sendp, sniff
@@ -36,10 +37,8 @@ class Radio:
                   prn=self.inputHandler,
                   filter="udp and host 127.0.0.1 and dst port " + str(self.recPort),
                   stop_filter=self.stopFilter)
-        except socket_error as err:
+        except Warning as err:
             print("caught")
-            if err.errno != errno.ENETDOWN:
-                raise err
 
     def __init__(self, vehicle, output_Stream, input_Stream, ID, channel, recPort, destPort, interface="wlan1"):
         self.vehicle = vehicle
