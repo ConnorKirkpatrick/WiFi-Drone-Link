@@ -1,7 +1,5 @@
 import asyncio, socket, threading,  time, subprocess
 from concurrent.futures import ThreadPoolExecutor
-import warnings
-warnings.filterwarnings("error")
 
 import scapy.interfaces
 from scapy.all import sendp, sniff
@@ -32,13 +30,12 @@ class Radio:
 
     def wirelessReceiver(self):
         scapy.interfaces.ifaces.reload()
-        try:
-            sniff(iface='wlan1',
-                  prn=self.inputHandler,
-                  filter="udp and host 127.0.0.1 and dst port " + str(self.recPort),
-                  stop_filter=self.stopFilter)
-        except Warning as err:
-            print("caught")
+
+        sniff(iface='wlan1',
+              prn=self.inputHandler,
+              filter="udp and host 127.0.0.1 and dst port " + str(self.recPort),
+              stop_filter=self.stopFilter)
+
 
     def __init__(self, vehicle, output_Stream, input_Stream, ID, channel, recPort, destPort, interface="wlan1"):
         self.vehicle = vehicle
