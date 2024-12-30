@@ -10,7 +10,7 @@ import messageStore
 from scapy.all import sniff
 
 inputStream = multiprocessing.Queue()
-
+TX = None
 
 async def main():
     print("Started")
@@ -60,21 +60,21 @@ async def main():
 
 
     while True:
-        await asyncio.sleep(10)
+        await asyncio.sleep(1)
 
-        # handle graceful shutdown after user-interrupt here
-        # need to terminate the listener thread
-        rx.cancel()
-        break
 
-    print("Goodbye")
+
     # mav.gps_raw_int_send()
     # mav.attitude_send()
 
 
 if __name__ == '__main__':
-    print("Running")
-    asyncio.run(main())
-
+    try:
+        print("Running")
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Ending run")
+        TX.end()
+        print("Goodbye")
 # TODO: setup serial link with Arduino
 # TODO:     establish standard drone telem messages to base station
