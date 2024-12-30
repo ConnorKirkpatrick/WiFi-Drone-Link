@@ -60,13 +60,12 @@ async def main():
 
 
     while True:
-        try:
-            await asyncio.sleep(1)
-        except KeyboardInterrupt as e:
-            # handle graceful shutdown after user-interrupt here
-            # need to terminate the listener thread
-            rx.cancel()
-            break
+        await asyncio.sleep(10)
+
+        # handle graceful shutdown after user-interrupt here
+        # need to terminate the listener thread
+        rx.cancel()
+        break
 
     print("Goodbye")
     # mav.gps_raw_int_send()
