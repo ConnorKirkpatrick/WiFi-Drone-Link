@@ -1,4 +1,4 @@
-import asyncio, socket, threading, time
+import asyncio, socket, threading,  time
 from concurrent.futures import ThreadPoolExecutor
 
 import scapy.interfaces
@@ -20,7 +20,6 @@ from Crypto.Protocol.KDF import bcrypt, scrypt
 
 # from main import inputStream
 
-
 class Radio:
     def inputHandler(self, pkt):
         # Possibly add address filtering at this layer
@@ -30,6 +29,7 @@ class Radio:
         return self.running is False
 
     def wirelessReceiver(self):
+        print("Starting sniff")
         scapy.interfaces.ifaces.reload()
         sniff(iface='wlan1',
               prn=self.inputHandler,
