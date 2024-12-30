@@ -424,6 +424,6 @@ class Radio:
         except TimeoutError:
             # force shutdown by breaking the sniff object
             subprocess.check_output(['sudo', 'ip', 'link', 'set', self.interface, 'down'])
-            time.sleep(0.3)
+            time.sleep(2.5)
             subprocess.check_output(['sudo', 'ip', 'link', 'set', self.interface, 'up'])
         print("Listener done")
