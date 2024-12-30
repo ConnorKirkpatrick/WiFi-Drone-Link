@@ -44,7 +44,7 @@ class Radio:
                                             addr3="00:00:00:00:00:00",
                                             type=2,
                                             subtype=8) / Dot11QoS(Ack_Policy=1) / LLC() / SNAP() / IP(src='127.0.0.1',
-                                                                                          dst='127.0.0.1') / \
+                                                                                                      dst='127.0.0.1') / \
                          UDP(sport=self.recPort, dport=self.destPort)
 
         # Identity variables
@@ -371,7 +371,6 @@ class Radio:
         :return:
         """
 
-
         # Step 1, broadcast information
         # Initial handshake, broadcast your identity, public key, and channel
         # This can be augmented with signatures linked to the ID, fixed message is encrypted using their private key
@@ -383,6 +382,10 @@ class Radio:
         msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
                                                          format=serialization.PublicFormat.OpenSSH))
         await self.send(0, msg, False)
+
+        while self.targetKey is None:
+            await asyncio.sleep(10)
+            await self.send(0, msg, False)
 
     async def resetHandshake(self):
         """
