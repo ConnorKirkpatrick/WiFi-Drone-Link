@@ -32,6 +32,7 @@ class Radio:
               prn=self.inputHandler,
               filter="udp and host 127.0.0.1 and dst port " + str(self.recPort),
               stop_filter=lambda x: self.running is False)
+        print("Sniff done")
 
     def __init__(self, vehicle, output_Stream, input_Stream, ID, channel, recPort, destPort, interface="wlan1"):
         self.vehicle = vehicle
