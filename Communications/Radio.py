@@ -420,7 +420,7 @@ class Radio:
         print("Trying to end")
         self.running = False
         self.listener.join(timeout=2) # wait 2 seconds to see if the thread joined
-        if self.listener.isAlive():
+        if self.listener.is_alive():
             # force shutdown by breaking the sniff object
             subprocess.check_output(['sudo', 'ip', 'link', 'set', self.interface, 'down'])
             time.sleep(0.5)
