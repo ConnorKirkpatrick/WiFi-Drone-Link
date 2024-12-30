@@ -37,6 +37,7 @@ class Radio:
                   filter="udp and host 127.0.0.1 and dst port " + str(self.recPort),
                   stop_filter=self.stopFilter)
         except socket_error as err:
+            print("caught")
             if err.errno != errno.ENETDOWN:
                 raise err
 
