@@ -54,9 +54,9 @@ async def main():
         # data
 
         # Mavlink tasks
-        messenger = messages.messages(vehicle)
-        conn = "/dev/ttyACM0"
-        FC = Serial_Connection(conn, messenger)
+        #messenger = messages.messages(vehicle)
+        #conn = "/dev/ttyACM0"
+        #FC = Serial_Connection(conn, messenger)
 
     print("Tasks created")
 
