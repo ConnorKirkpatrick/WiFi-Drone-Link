@@ -62,7 +62,7 @@ async def main():
     while True:
         try:
             await asyncio.sleep(1)
-        except asyncio.exceptions.CancelledError as e:
+        except KeyboardInterrupt as e:
             # handle graceful shutdown after user-interrupt here
             # need to terminate the listener thread
             rx.cancel()
