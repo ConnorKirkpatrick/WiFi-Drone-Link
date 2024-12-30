@@ -1,5 +1,6 @@
-import asyncio, socket, threading,  time, subprocess
+import asyncio, socket, threading,  time, subprocess, errno
 from concurrent.futures import ThreadPoolExecutor
+from socket import error as socket_error
 
 import scapy.interfaces
 from scapy.all import sendp, sniff
@@ -29,13 +30,15 @@ class Radio:
         return self.running is False
 
     def wirelessReceiver(self):
-        print("Starting sniff")
         scapy.interfaces.ifaces.reload()
-        sniff(iface='wlan1',
-              prn=self.inputHandler,
-              filter="udp and host 127.0.0.1 and dst port " + str(self.recPort),
-              stop_filter=self.stopFilter)
-        print("Sniff done")
+        try:
+            sniff(iface='wlan1',
+                  prn=self.inputHandler,
+                  filter="udp and host 127.0.0.1 and dst port " + str(self.recPort),
+                  stop_filter=self.stopFilter)
+        except socket_error as err:
+            if err.errno != errno.ENETDOWN:
+                raise err
 
     def __init__(self, vehicle, output_Stream, input_Stream, ID, channel, recPort, destPort, interface="wlan1"):
         self.vehicle = vehicle
