@@ -64,7 +64,7 @@ async def main():
     except asyncio.CancelledError:
         print("Cancelling")
         TX.end()
-
+        exit()
     # mav.gps_raw_int_send()
     # mav.attitude_send()
 
