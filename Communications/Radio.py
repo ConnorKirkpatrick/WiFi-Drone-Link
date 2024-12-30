@@ -309,10 +309,8 @@ class Radio:
         if self.currentSecret is None:
             # No set encryption, broadcast in the clear
             sendp(self.dataFrame / Raw(load=encodedMsg), iface=self.interface, verbose=0)
-            pass
         else:
             sendp(self.dataFrame / Raw(load=self.encrypt(encodedMsg)), iface=self.interface, verbose=0)
-            pass
         if needAck:
             # Finally, create a timer object with the ID of the message
             timer = asyncio.create_task(self.timer(messageType, self.messageID, messageContents))
