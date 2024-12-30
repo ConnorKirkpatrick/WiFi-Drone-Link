@@ -26,12 +26,15 @@ class Radio:
         # Possibly add address filtering at this layer
         self.input.put_nowait(pkt[Raw].load)
 
+    def stopFilter(self,x):
+        return self.running is False
+
     def wirelessReceiver(self):
         scapy.interfaces.ifaces.reload()
         sniff(iface='wlan1',
               prn=self.inputHandler,
               filter="udp and host 127.0.0.1 and dst port " + str(self.recPort),
-              stop_filter=lambda x: self.running is False)
+              stop_filter=self.stopFilter)
         print("Sniff done")
 
     def __init__(self, vehicle, output_Stream, input_Stream, ID, channel, recPort, destPort, interface="wlan1"):
