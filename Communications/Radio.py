@@ -1,4 +1,4 @@
-import asyncio, socket, threading,  time
+import asyncio, socket, threading,  time, subprocess
 from concurrent.futures import ThreadPoolExecutor
 
 import scapy.interfaces
@@ -419,5 +419,11 @@ class Radio:
     def end(self):
         print("Trying to end")
         self.running = False
-        self.listener.join()
+        try:
+            self.listener.join(timeout=2)
+        except TimeoutError:
+            # force shutdown by breaking the sniff object
+            subprocess.check_output(['sudo', 'ip', 'link', 'set', self.interface, 'down'])
+            time.sleep(0.3)
+            subprocess.check_output(['sudo', 'ip', 'link', 'set', self.interface, 'up'])
         print("Listener done")
