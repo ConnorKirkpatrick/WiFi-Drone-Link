@@ -5,7 +5,7 @@ import asyncio, os, queue
 from Communications.Radio import Radio
 from Communications.Serial import Serial_Connection
 from Mavlink import messages
-from initialise import initialiseWiFi
+from initialise import initialiseWiFi, resetWiFi
 import messageStore
 from scapy.all import sniff
 
@@ -64,6 +64,7 @@ async def main():
     except asyncio.CancelledError:
         print("Cancelling")
         TX.end()
+        resetWiFi()
         exit()
     # mav.gps_raw_int_send()
     # mav.attitude_send()
