@@ -1,7 +1,7 @@
 future
 lxml
-pymavlink
-scapy
-cryptography
+pymavlink~=2.4.42
+scapy~=2.6.1
+cryptography~=44.0.0
 pycryptodome
-pyserial
+pyserial~=3.5

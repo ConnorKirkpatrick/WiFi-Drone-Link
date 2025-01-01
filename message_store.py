@@ -1,5 +1,7 @@
 import queue
-class messageStore:
+
+
+class MessageStore:
 
     def __init__(self):
         self.store = queue.Queue()
@@ -8,10 +10,9 @@ class messageStore:
         self.store.put(data)
 
     async def read(self):
-        if await self.getSize() < 1:
+        if await self.get_size() < 1:
             return None
-        else:
-            return self.store.get_nowait()
+        return self.store.get_nowait()
 
-    async def getSize(self):
+    async def get_size(self):
         return self.store.qsize()

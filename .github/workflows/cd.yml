@@ -1,0 +1,14 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  CI:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      # actions/checkout
+      contents: read
