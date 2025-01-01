@@ -23,43 +23,44 @@ from scapy.packet import Raw
 
 
 class Radio:
-    def inputHandler(self, pkt):
+    def input_handler(self, pkt):
         # Possibly add address filtering at this layer
         self.input.put_nowait(pkt[Raw].load)
 
-    def stopFilter(self, x):
+    def stop_filter(self):
         return self.running is False
 
-    def wirelessReceiver(self):
+    def wireless_receiver(self):
         scapy.interfaces.ifaces.reload()
 
         sniff(
             iface="wlan1",
-            prn=self.inputHandler,
-            filter="udp and host 127.0.0.1 and dst port " + str(self.recPort),
-            stop_filter=self.stopFilter,
+            prn=self.input_handler,
+            filter="udp and host 127.0.0.1 and dst port " + str(self.rec_port),
+            stop_filter=self.stop_filter,
         )
 
+    # noinspection too-many-positional-arguments
     def __init__(
         self,
         vehicle,
-        output_Stream,
-        input_Stream,
-        ID,
+        output_stream,
+        input_stream,
+        vehicle_id,
         channel,
-        recPort,
-        destPort,
+        rec_port,
+        dest_port,
         interface="wlan1",
     ):
         self.vehicle = vehicle
         self.interface = interface
-        self.outputStream = output_Stream
-        self.input = input_Stream
-        self.QGC_Socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.QGC_Addr = ("127.0.0.1", 14550)
-        self.recPort = int(recPort)
-        self.destPort = int(destPort)
-        self.dataFrame = (
+        self.output_stream = output_stream
+        self.input = input_stream
+        self.qgc_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.qgc_addr = ("127.0.0.1", 14550)
+        self.rec_port = int(rec_port)
+        self.dest_port = int(dest_port)
+        self.data_frame = (
             RadioTap()
             / Dot11(
                 addr1="00:00:00:00:00:00",
@@ -72,36 +73,36 @@ class Radio:
             / LLC()
             / SNAP()
             / IP(src="127.0.0.1", dst="127.0.0.1")
-            / UDP(sport=self.recPort, dport=self.destPort)
+            / UDP(sport=self.rec_port, dport=self.dest_port)
         )
 
         # Identity variables
-        self.ID = ID
+        self.id = vehicle_id
         self.target = None
         self.channel = int(channel)
         # Management stores
         self.reserve = {}
         self.timers = {}
-        self.messageID = 0
-        self.handshakeFlag = False
+        self.message_id = 0
+        self.handshake_flag = False
         # Cryptography variables
         # Exchange variables
         self.curve = ec.SECP256R1()
         # Step 0, generate keys
-        self.ownKey = ec.generate_private_key(self.curve)
-        self.targetKey = None
-        self.masterSecret = None
+        self.own_key = ec.generate_private_key(self.curve)
+        self.target_key = None
+        self.master_secret = None
         # ChaCha20 variables
-        self.currentSecret = None
-        self.eEngine = None
+        self.current_secret = None
+        self.encryption_engine = None
         # Startup the radio listener thread
-        self.listener = threading.Thread(target=self.wirelessReceiver)
+        self.listener = threading.Thread(target=self.wireless_receiver)
         self.running = True
         self.listener.start()
         # Upon initiating, attempt to connect to a second radio in order to exchange keys
         # Communications start by default on channel 36
         # Message ID's: 1 is handshake,
-        if ID != "GCS":  # only broadcast if you are a Drone
+        if vehicle_id != "GCS":  # only broadcast if you are a Drone
             print("Sending broadcast")
             asyncio.create_task(self.handshake())
 
@@ -111,8 +112,10 @@ class Radio:
         :param message: [String] The plaintext we want to encrypt
         :return: [Bytes] The encrypted message
         """
-        self.eEngine = ChaCha20_Poly1305.new(key=self.currentSecret, nonce=b"00000000")
-        return b"".join(self.eEngine.encrypt_and_digest(message))
+        self.encryption_engine = ChaCha20_Poly1305.new(
+            key=self.current_secret, nonce=b"00000000"
+        )
+        return b"".join(self.encryption_engine.encrypt_and_digest(message))
 
     # potentially think of storing and using the past message MAC as the next nonce for our message
     # the last mac we generated during encryption is the next mac we use to
@@ -124,10 +127,12 @@ class Radio:
         :param mac: [bytes] the associated MAC code
         :return: [String or None] returns the plaintext or none if the decryption fails
         """
-        self.eEngine = ChaCha20_Poly1305.new(key=self.currentSecret, nonce=b"00000000")
+        self.encryption_engine = ChaCha20_Poly1305.new(
+            key=self.current_secret, nonce=b"00000000"
+        )
         try:
-            return self.eEngine.decrypt_and_verify(message, mac)
-        except ValueError or TypeError:
+            return self.encryption_engine.decrypt_and_verify(message, mac)
+        except (ValueError, TypeError):
             return None
 
     async def tx(self):
@@ -137,29 +142,29 @@ class Radio:
         :return:
         """
         while self.running:
-            msg = await self.outputStream.read()
+            msg = await self.output_stream.read()
             if msg is None:
                 await asyncio.sleep(0.01)
             else:
-                # TODO: Wrap this data correctly with management IDs
+                # Wrap this data correctly with management IDs
                 if msg[3] == 0:
                     # don't need an ack for the heartbeat
                     await self.send(3, msg, False)
                 else:
                     await self.send(3, msg)
-                """
-                If the packet is type 3 (mavlink) we should store it in the reserve under the mavlink ID
-                we should also create and store a time in the retransmission store for this message
-                If the timer triggers, it pulls the message from the linked store and re-transmits it
-                """
 
-    def ack(self, ID):
+                # If the packet is type 3 (mavlink) we should store it in the reserve under the mavlink ID
+                # we should also create and store a time in the retransmission store for this message
+                # If the timer triggers, it pulls the message from the linked store and re-transmits it
+
+    def ack(self, message_id):
         code = 0
         resp = bytearray()
         resp.extend(code.to_bytes(1, "big"))
-        resp.extend(ID)
+        resp.extend(message_id)
         asyncio.create_task(self.send(4, resp, False))
 
+    # noinspection too-many-branches
     async def rx(self):
         """
         The main Receiver for the application will check the type of data received and then handle it accordingly
@@ -184,15 +189,15 @@ class Radio:
             if not self.input.empty():
                 msg = self.input.get(False)
                 # need way to check both encrypted and decrypted
-                if self.currentSecret is not None:
-                    decMsg = self.decrypt(msg[0:-16], msg[-16:])
+                if self.current_secret is not None:
+                    dec_msg = self.decrypt(msg[0:-16], msg[-16:])
                     if (
-                        decMsg is not None
+                        dec_msg is not None
                     ):  # if decrypted properly, make msg the decrypted value
-                        msg = decMsg
+                        msg = dec_msg
                         # this means that if we receive data such as ACK after
                         # keys are set, we can still process them
-                if int.from_bytes(msg[0:1], "big") == 0 and not self.handshakeFlag:
+                if int.from_bytes(msg[0:1], "big") == 0 and not self.handshake_flag:
                     # Received broadcast message, respond with our key and ID
                     # data
                     self.ack(msg[1:3])
@@ -201,19 +206,19 @@ class Radio:
                         msg[7],
                     )
                     self.timers["handshake"] = asyncio.create_task(
-                        self.resetHandshake()
+                        self.reset_handshake()
                     )
 
                     self.target = msg[4:7].decode()
                     # Step 3, extract public key
-                    self.targetKey = serialization.load_ssh_public_key(msg[8:])
+                    self.target_key = serialization.load_ssh_public_key(msg[8:])
 
                     # Got a broadcast, respond with ID, pubKey
 
                     msg = bytearray()
-                    msg.extend(self.ID.encode())
+                    msg.extend(self.id.encode())
                     msg.extend(
-                        self.ownKey.public_key().public_bytes(
+                        self.own_key.public_key().public_bytes(
                             encoding=serialization.Encoding.OpenSSH,
                             format=serialization.PublicFormat.OpenSSH,
                         )
@@ -222,75 +227,79 @@ class Radio:
                     print("Responded with own data....")
 
                     # Generate initial shared secret
-                    sharedSecret = self.ownKey.exchange(ec.ECDH(), self.targetKey)
-                    self.masterSecret = HKDF(
+                    shared_secret = self.own_key.exchange(ec.ECDH(), self.target_key)
+                    self.master_secret = HKDF(
                         algorithm=hashes.SHA256(),
                         length=32,
                         salt=None,
                         info=b"handshake data",
-                    ).derive(sharedSecret)
+                    ).derive(shared_secret)
 
                     # Generate a proper key, using a fixed salt for now,
                     # possibility of adding a future change
-                    self.currentSecret = scrypt(self.masterSecret, "0", 32, 1024, 8, 1)
+                    self.current_secret = scrypt(
+                        self.master_secret, "0", 32, 1024, 8, 1
+                    )
 
                     # Now wait for the target to respond first, goto step 5
 
-                elif int.from_bytes(msg[0:1], "big") == 1 and not self.handshakeFlag:
+                elif int.from_bytes(msg[0:1], "big") == 1 and not self.handshake_flag:
                     # Received broadcast response, generate derived key and
                     # send auth message
                     self.ack(msg[1:3])
                     print("Got response from " + msg[3:6].decode())
                     self.timers["handshake"] = asyncio.create_task(
-                        self.resetHandshake()
+                        self.reset_handshake()
                     )
 
                     self.target = msg[3:6].decode()
                     # Step 4, generate shared secret
-                    self.targetKey = serialization.load_ssh_public_key(msg[6:])
-                    sharedSecret = self.ownKey.exchange(ec.ECDH(), self.targetKey)
-                    self.masterSecret = HKDF(
+                    self.target_key = serialization.load_ssh_public_key(msg[6:])
+                    shared_secret = self.own_key.exchange(ec.ECDH(), self.target_key)
+                    self.master_secret = HKDF(
                         algorithm=hashes.SHA256(),
                         length=32,
                         salt=None,
                         info=b"handshake data",
-                    ).derive(sharedSecret)
+                    ).derive(shared_secret)
                     # Generate a proper key, using a fixed salt for now,
                     # possibility of adding a future change
-                    self.currentSecret = scrypt(self.masterSecret, "0", 32, 1024, 8, 1)
+                    self.current_secret = scrypt(
+                        self.master_secret, "0", 32, 1024, 8, 1
+                    )
                     # Now broadcast an encrypted message back to the other device
                     # This message consists of the concatenation of the device
                     # ID's and the current channel
                     msg = bytearray()
                     msg.extend(self.target.encode())
-                    msg.extend(self.ID.encode())
+                    msg.extend(self.id.encode())
                     msg.extend(self.channel.to_bytes(1, "big"))
                     # No auth needed, if there is any response it is an auth
                     await self.send(2, msg, False)
                     print("Sent cipher authentication msg")
 
-                elif int.from_bytes(msg[0:1], "big") == 2 and not self.handshakeFlag:
+                elif int.from_bytes(msg[0:1], "big") == 2 and not self.handshake_flag:
                     self.ack(msg[1:3])
                     # Step 5, verify that the encryption keys are correct
                     print("STEP 2")
                     if (
-                        msg[3:-1].decode() == self.ID + self.target
+                        msg[3:-1].decode() == self.id + self.target
                         and msg[-1] == self.channel
                     ):  # confirm and respond
                         print("KEY GOOD + RESPONDING")
-                        self.handshakeFlag = True
+                        self.handshake_flag = True
                         self.timers["handshake"].cancel()
                         # Now respond with the same but inverted message
                         zero = 0
                         msg = bytearray()
                         msg.extend(self.target.encode())
-                        msg.extend(self.ID.encode())
+                        msg.extend(self.id.encode())
                         msg.extend(zero.to_bytes(1, "big"))
                         await self.send(2, msg)
                     # confirm without response
-                    elif msg[3:-1].decode() == self.ID + self.target and msg[-1] == 0:
+                    elif msg[3:-1].decode() == self.id + self.target and msg[-1] == 0:
                         print("KEY GOOD")
-                        self.handshakeFlag = True
+                        self.handshake_flag = True
                         self.timers["handshake"].cancel()
                     else:
                         print("KEY BAD")
@@ -298,12 +307,12 @@ class Radio:
                         # once the other side times out on resending, they
                         # should reset their keys and restart
 
-                elif int.from_bytes(msg[0:1], "big") == 3 and self.handshakeFlag:
+                elif int.from_bytes(msg[0:1], "big") == 3 and self.handshake_flag:
                     self.ack(msg[1:3])
                     # this message is a standard mavlink message, pass it on
                     # Send the mavlink message to QGC excluding the message
                     # type[0] and ID[1-2]
-                    self.QGC_Socket.sendto(msg[3:], self.QGC_Addr)
+                    self.qgc_socket.sendto(msg[3:], self.qgc_addr)
                     # For the drone, this information needs to be decoded then sent via serial to the flight controller
                     # This means that the drone should also respond with an ACK with the mavlink ID
                     # ACK messages are a management message type, thus with ID
@@ -327,7 +336,7 @@ class Radio:
             else:
                 await asyncio.sleep(0.01)
 
-    async def self_RX(self):
+    async def self_rx(self):
         """
         This method handles receiving the packets sent from QGC to the drone when used as a ground control station.
         Due to our use of the loopback address in broadcasts, QGC will send its messages to that address
@@ -335,24 +344,20 @@ class Radio:
         The packets are then wrapped with the message type (mavlink:4) and device ID before broadcasting
         :return:
         """
-        TX_Bridge = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        tx_bridge = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         # bind to the local port QGC will send data to
-        TX_Bridge.bind(("127.0.0.1", 52796))
-        TX_Bridge.setblocking(False)
+        tx_bridge.bind(("127.0.0.1", 52796))
+        tx_bridge.setblocking(False)
         while True:
-            try:
-                msg = bytearray(284)
-                TX_Bridge.recv_into(msg)
-                msg = msg.rstrip(b"\x00")
-                msg = b"4" + self.ID.encode() + msg
-                # push the QGC message to the wireless interface with added
-                # message code and self ID
-                self.outputStream.write(msg)
-            except Exception:
-                await asyncio.sleep(0.01)
-        pass
+            msg = bytearray(284)
+            tx_bridge.recv_into(msg)
+            msg = msg.rstrip(b"\x00")
+            msg = b"4" + self.id.encode() + msg
+            # push the QGC message to the wireless interface with added
+            # message code and self ID
+            self.output_stream.write(msg)
 
-    async def send(self, messageType, messageContents, needAck=True):
+    async def send(self, message_type, message_contents, need_ack=True):
         """
         This method manages sending data via SCAPY in the correct way.
         Serialisation:
@@ -365,82 +370,82 @@ class Radio:
         designated time. If an ACK is received before this time, the object can be fetched from the self.timers
         dictionary and canceled
 
-        :param messageType: [Int] Data identifying the packet type
-        :param messageContents: [ByteArray] The contents of the packet
-        :param needAck: [Bool]: A flag that will determine if the system will need an ACK or not to confirm receipt
+        :param message_type: [Int] Data identifying the packet type
+        :param message_contents: [ByteArray] The contents of the packet
+        :param need_ack: [Bool]: A flag that will determine if the system will need an ACK or not to confirm receipt
         :return:
         """
-        encodedMsg = bytearray()
-        encodedMsg.extend(messageType.to_bytes(1, "big"))
+        encoded_msg = bytearray()
+        encoded_msg.extend(message_type.to_bytes(1, "big"))
         # 2 byte value, ID's from 0-65536
-        encodedMsg.extend(self.messageID.to_bytes(2, "big"))
-        encodedMsg.extend(messageContents)
+        encoded_msg.extend(self.message_id.to_bytes(2, "big"))
+        encoded_msg.extend(message_contents)
 
-        if self.currentSecret is None:
+        if self.current_secret is None:
             # No set encryption, broadcast in the clear
             sendp(
-                self.dataFrame / Raw(load=encodedMsg), iface=self.interface, verbose=0
+                self.data_frame / Raw(load=encoded_msg), iface=self.interface, verbose=0
             )
         else:
             sendp(
-                self.dataFrame / Raw(load=self.encrypt(encodedMsg)),
+                self.data_frame / Raw(load=self.encrypt(encoded_msg)),
                 iface=self.interface,
                 verbose=0,
             )
-        if needAck:
+        if need_ack:
             # Finally, create a timer object with the ID of the message
             timer = asyncio.create_task(
-                self.timer(messageType, self.messageID, messageContents)
+                self.timer(message_type, self.message_id, message_contents)
             )
-            self.timers[self.messageID] = timer
+            self.timers[self.message_id] = timer
             # increment the counter, so it is ready for the next message
-        self.messageID += 1
+        self.message_id += 1
 
-    async def reSend(self, messageType, ID, messageContents, attempts):
+    async def re_send(self, message_type, message_id, message_contents, attempts):
         """
         The re-send method is functionally identical to the send method except it will take a fixed message ID of the
         old message rather than generating a new one. We can also check how many more times to attempt to send this
         message
-        :param messageType: [Int] Data identifying the packet type
-        :param ID: [Int] 2 bytes that make up the ID of the message
-        :param messageContents: [ByteArray] The contents of the packet
+        :param message_type: [Int] Data identifying the packet type
+        :param message_id: [Int] 2 bytes that make up the ID of the message
+        :param message_contents: [ByteArray] The contents of the packet
         :param attempts: [Int] The remaining attempts to re-send
         :return:
         """
-        encodedMsg = bytearray()
-        encodedMsg.extend(messageType.to_bytes(1, "big"))
+        encoded_msg = bytearray()
+        encoded_msg.extend(message_type.to_bytes(1, "big"))
         # 2 byte value, ID's from 0-65536
-        encodedMsg.extend(ID.to_bytes(2, "big"))
-        encodedMsg.extend(messageContents)
-        if self.currentSecret is None:
+        encoded_msg.extend(message_id.to_bytes(2, "big"))
+        encoded_msg.extend(message_contents)
+        if self.current_secret is None:
             # No set encryption, broadcast in the clear
             sendp(
-                self.dataFrame / Raw(load=encodedMsg), iface=self.interface, verbose=0
+                self.data_frame / Raw(load=encoded_msg), iface=self.interface, verbose=0
             )
-            pass
+
         else:
             sendp(
-                self.dataFrame / Raw(load=self.encrypt(encodedMsg)),
+                self.data_frame / Raw(load=self.encrypt(encoded_msg)),
                 iface=self.interface,
                 verbose=0,
             )
-            pass
+
         attempts += -1
         if attempts >= 1:
             timer = asyncio.create_task(
-                self.timer(messageType, ID, messageContents, attempts)
+                self.timer(message_type, message_id, message_contents, attempts)
             )
-            self.timers[self.messageID] = timer
+            self.timers[self.message_id] = timer
 
     async def timer(
-        self, messageType, messageID, messageContents, duration=0.25, attempts=5
+        self, message_type, message_id, message_contents, duration=0.25, attempts=5
     ):
         """
         The timer method allows us to create asynchronous tasks to trigger a re-send action if the other device does not
         acknowledge a message in time.
-        :param messageType: [Int] the type of message
-        :param messageID: [Int] 2 bytes that make up the ID of the message
-        :param messageContents: [ByteArray] the payload of the overall message
+        :param message_type: [Int] the type of message
+        :param message_id: [Int] 2 bytes that make up the ID of the message
+        :param message_contents: [ByteArray] the payload of the overall message
         :param duration: [Float] The time to wait before triggering a re-send in seconds
         :param attempts: [Int] The number of times to try to re-send
         :return:
@@ -449,7 +454,7 @@ class Radio:
         # re-sending
         await asyncio.sleep(duration)
         print("Timer triggered")
-        await self.reSend(messageType, messageID, messageContents, attempts)
+        await self.re_send(message_type, message_id, message_contents, attempts)
         await asyncio.sleep(0.0001)
 
     async def handshake(self):
@@ -464,23 +469,23 @@ class Radio:
         # This can be augmented with signatures linked to the ID, fixed message
         # is encrypted using their private key
         msg = bytearray()
-        id = 0
-        msg.extend(id.to_bytes(1, "big"))
-        msg.extend(self.ID.encode())
+        message_id = 0
+        msg.extend(message_id.to_bytes(1, "big"))
+        msg.extend(self.id.encode())
         msg.extend(self.channel.to_bytes(1, "big"))
         msg.extend(
-            self.ownKey.public_key().public_bytes(
+            self.own_key.public_key().public_bytes(
                 encoding=serialization.Encoding.OpenSSH,
                 format=serialization.PublicFormat.OpenSSH,
             )
         )
         await self.send(0, msg, False)
 
-        while self.targetKey is None:
+        while self.target_key is None:
             await asyncio.sleep(10)
             await self.send(0, msg, False)
 
-    async def resetHandshake(self):
+    async def reset_handshake(self):
         """
         Reset handshake is a simple timeout method created as soon as a handshake is initiated with a second device
         This ensures that our handshake cannot hang and in the case of malformed keys all the data is flushed before
@@ -488,24 +493,24 @@ class Radio:
         :return:
         """
         await asyncio.sleep(5)  # 5 seconds allocated for a successful handshake
-        self.masterSecret = None
-        self.currentSecret = None
+        self.master_secret = None
+        self.current_secret = None
         self.target = None
-        self.targetKey = None
+        self.target_key = None
 
         msg = bytearray()
-        msg.extend(self.ID.encode())
+        msg.extend(self.id.encode())
         msg.extend(self.channel.to_bytes(1, "big"))
         msg.extend(
-            self.ownKey.public_key().public_bytes(
+            self.own_key.public_key().public_bytes(
                 encoding=serialization.Encoding.OpenSSH,
                 format=serialization.PublicFormat.OpenSSH,
             )
         )
         await self.send(0, msg, False)
 
-    def getHandshakeStatus(self):
-        return self.handshakeFlag
+    def get_handshake_status(self):
+        return self.handshake_flag
 
     def end(self):
         print("Trying to end")
