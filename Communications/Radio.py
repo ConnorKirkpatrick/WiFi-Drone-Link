@@ -1,21 +1,21 @@
-import asyncio, socket, threading,  time, subprocess
-from concurrent.futures import ThreadPoolExecutor
+import asyncio
+import socket
+import subprocess
+import threading
+import time
 
 import scapy.interfaces
+from Crypto.Cipher import ChaCha20_Poly1305
+from Crypto.Protocol.KDF import scrypt
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import ec
+# Encryption Imports
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from scapy.all import sendp, sniff
 from scapy.layers.dot11 import Dot11, Dot11QoS, RadioTap
 from scapy.layers.inet import UDP, IP
 from scapy.layers.l2 import LLC, SNAP
 from scapy.packet import Raw
-
-# Encryption Imports
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives import serialization, hashes
-
-from Crypto.Cipher import ChaCha20_Poly1305
-from Crypto.Random import get_random_bytes
-from Crypto.Protocol.KDF import bcrypt, scrypt
 
 
 # from main import inputStream
@@ -25,7 +25,7 @@ class Radio:
         # Possibly add address filtering at this layer
         self.input.put_nowait(pkt[Raw].load)
 
-    def stopFilter(self,x):
+    def stopFilter(self, x):
         return self.running is False
 
     def wirelessReceiver(self):
@@ -35,7 +35,6 @@ class Radio:
               prn=self.inputHandler,
               filter="udp and host 127.0.0.1 and dst port " + str(self.recPort),
               stop_filter=self.stopFilter)
-
 
     def __init__(self, vehicle, output_Stream, input_Stream, ID, channel, recPort, destPort, interface="wlan1"):
         self.vehicle = vehicle
@@ -419,7 +418,7 @@ class Radio:
     def end(self):
         print("Trying to end")
         self.running = False
-        self.listener.join(timeout=2) # wait 2 seconds to see if the thread joined
+        self.listener.join(timeout=2)  # wait 2 seconds to see if the thread joined
         if self.listener.is_alive():
             # force shutdown by breaking the sniff object
             subprocess.check_output(['sudo', 'ip', 'link', 'set', self.interface, 'down'])
