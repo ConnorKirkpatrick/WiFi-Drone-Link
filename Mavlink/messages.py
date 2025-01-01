@@ -21,7 +21,8 @@ class messages:
                 mavlink2.MAV_AUTOPILOT_PX4,
                 mavlink2.MAV_MODE_FLAG_TEST_ENABLED,
                 mavlink2.MAV_MODE_FLAG_TEST_ENABLED,
-                mavlink2.MAV_STATE_STANDBY)
+                mavlink2.MAV_STATE_STANDBY,
+            )
             await asyncio.sleep(1)
 
     async def GPS_Raw(self):
@@ -48,7 +49,8 @@ class messages:
                 0,
                 0,
                 0,
-                0)
+                0,
+            )
             await asyncio.sleep(0.25)
 
     async def statustext(self, message):
@@ -58,7 +60,8 @@ class messages:
     async def GPS(self):
         while True:
             self.vehicle.global_position_int_send(
-                2000, 513438508, -6432654, 110, 0, 0, 0, 0, 90)
+                2000, 513438508, -6432654, 110, 0, 0, 0, 0, 90
+            )
 
     async def GlobalPosition(self, message):
         time = int.from_bytes(message[0:4], "little", signed=False)
@@ -71,7 +74,8 @@ class messages:
         vz = int.from_bytes(message[24:26], "little", signed=True)
         hdg = int.from_bytes(message[26:28], "little", signed=False)
         self.vehicle.global_position_int_send(
-            time, lat, lng, alt, ralt, vx, vy, vz, hdg)
+            time, lat, lng, alt, ralt, vx, vy, vz, hdg
+        )
 
     async def Attitude(self, message):
         time = int.from_bytes(message[0:4], "little", signed=False)
@@ -117,4 +121,5 @@ class messages:
             vu,
             velU,
             headU,
-            yaw)
+            yaw,
+        )

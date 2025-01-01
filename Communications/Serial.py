@@ -33,7 +33,7 @@ class Serial_Connection:
         while True:
             data = self.read()
             if data is not False:
-                if data[0] == 0 and data[1:] == b'XXXXX':
+                if data[0] == 0 and data[1:] == b"XXXXX":
                     break
             time.sleep(0.001)
 

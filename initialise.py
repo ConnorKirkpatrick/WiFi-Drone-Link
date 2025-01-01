@@ -4,13 +4,13 @@ import time
 
 
 def bToString(arg):
-    return ''.join(map(chr, arg))
+    return "".join(map(chr, arg))
 
 
 # Current ISSUES, renaming the wifi device seems to get overridden by the system as soon as it is done by the code
 # Find a fix, or update adaptor name to the found name
-def initialiseWiFi(wifiAdaptor='wlan1'):
-    deviceList = bToString(subprocess.check_output(['lsusb'])).split("\n")
+def initialiseWiFi(wifiAdaptor="wlan1"):
+    deviceList = bToString(subprocess.check_output(["lsusb"])).split("\n")
     wifiDevice = ""
     for device in deviceList:
         if device.__contains__("RTL88"):
@@ -24,35 +24,31 @@ def initialiseWiFi(wifiAdaptor='wlan1'):
     # time.sleep(1)
     # Reset the random name to predictable
     adapters = bToString(
-        subprocess.check_output(
-            ['iwconfig'],
-            stderr=subprocess.DEVNULL)).split("\n\n")
+        subprocess.check_output(["iwconfig"], stderr=subprocess.DEVNULL)
+    ).split("\n\n")
     for adapter in adapters:
-        if adapter.__contains__(
-                "WIFI@REALTEK") or adapter.__contains__("WIFI@RTL"):
+        if adapter.__contains__("WIFI@REALTEK") or adapter.__contains__("WIFI@RTL"):
             subprocess.run(
-                ['ip', 'link', 'set', adapter.split(" ")[0], 'name', 'wlan1'])
+                ["ip", "link", "set", adapter.split(" ")[0], "name", "wlan1"]
+            )
             break
     # now set the device to monitor mode and to use channel 36
 
-    subprocess.check_output(['sudo', 'ip', 'link', 'set', wifiAdaptor, 'down'])
+    subprocess.check_output(["sudo", "ip", "link", "set", wifiAdaptor, "down"])
     time.sleep(0.3)
-    subprocess.check_output(
-        ['sudo', 'iw', wifiAdaptor, 'set', 'monitor', 'none'])
+    subprocess.check_output(["sudo", "iw", wifiAdaptor, "set", "monitor", "none"])
     time.sleep(0.3)
-    subprocess.check_output(['sudo', 'ip', 'link', 'set', wifiAdaptor, 'up'])
+    subprocess.check_output(["sudo", "ip", "link", "set", wifiAdaptor, "up"])
     time.sleep(0.3)
-    subprocess.check_output(
-        ['sudo', 'iw', 'dev', wifiAdaptor, 'set', 'channel', '36'])
+    subprocess.check_output(["sudo", "iw", "dev", wifiAdaptor, "set", "channel", "36"])
     time.sleep(1)
     return wifiAdaptor
 
 
-def resetWiFi(wifiAdaptor='wlan1'):
-    subprocess.check_output(['sudo', 'ip', 'link', 'set', wifiAdaptor, 'down'])
+def resetWiFi(wifiAdaptor="wlan1"):
+    subprocess.check_output(["sudo", "ip", "link", "set", wifiAdaptor, "down"])
     time.sleep(0.3)
-    subprocess.check_output(
-        ['sudo', 'iw', wifiAdaptor, 'set', 'type', 'managed'])
+    subprocess.check_output(["sudo", "iw", wifiAdaptor, "set", "type", "managed"])
     time.sleep(0.3)
-    subprocess.check_output(['sudo', 'ip', 'link', 'set', wifiAdaptor, 'up'])
+    subprocess.check_output(["sudo", "ip", "link", "set", wifiAdaptor, "up"])
     time.sleep(0.3)

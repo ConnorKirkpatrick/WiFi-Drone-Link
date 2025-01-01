@@ -18,7 +18,7 @@ async def main():
     try:
         print("Started")
         initialiseWiFi()
-        os.environ["MAVLINK20"] = '1'
+        os.environ["MAVLINK20"] = "1"
         # read settings from file
         config = open("config.txt", "r")
         ID = config.readline().split(":")[1].strip("\n")
@@ -31,14 +31,8 @@ async def main():
         outputStream = messageStore.messageStore()
         vehicle = mavlink2.MAVLink(outputStream, srcSystem=1, srcComponent=1)
         TX = Radio(
-            vehicle,
-            outputStream,
-            inputStream,
-            ID,
-            channel,
-            recPort,
-            decPort,
-            Interface)
+            vehicle, outputStream, inputStream, ID, channel, recPort, decPort, Interface
+        )
 
         # Note: file is the address/device mavlink will try to transmit on. We will route this to our
         # own structure to allow us to encrypt and broadcast the message
@@ -83,7 +77,7 @@ async def main():
     # mav.attitude_send()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         print("Running")
         task = asyncio.run(main())
