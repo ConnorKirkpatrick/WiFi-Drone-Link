@@ -1,6 +1,7 @@
-import asyncio, socket, threading, time
+import asyncio, socket, threading,  time, subprocess
 from concurrent.futures import ThreadPoolExecutor
 
+import scapy.interfaces
 from scapy.all import sendp, sniff
 from scapy.layers.dot11 import Dot11, Dot11QoS, RadioTap
 from scapy.layers.inet import UDP, IP
@@ -19,14 +20,22 @@ from Crypto.Protocol.KDF import bcrypt, scrypt
 
 # from main import inputStream
 
-
 class Radio:
     def inputHandler(self, pkt):
         # Possibly add address filtering at this layer
         self.input.put_nowait(pkt[Raw].load)
 
+    def stopFilter(self,x):
+        return self.running is False
+
     def wirelessReceiver(self):
-        sniff(iface='wlan1', prn=self.inputHandler, filter="udp and host 127.0.0.1 and dst port " + str(self.recPort))
+        scapy.interfaces.ifaces.reload()
+
+        sniff(iface='wlan1',
+              prn=self.inputHandler,
+              filter="udp and host 127.0.0.1 and dst port " + str(self.recPort),
+              stop_filter=self.stopFilter)
+
 
     def __init__(self, vehicle, output_Stream, input_Stream, ID, channel, recPort, destPort, interface="wlan1"):
         self.vehicle = vehicle
@@ -41,8 +50,8 @@ class Radio:
                                             addr2="00:00:00:00:00:00",
                                             addr3="00:00:00:00:00:00",
                                             type=2,
-                                            subtype=8) / Dot11QoS() / LLC() / SNAP() / IP(src='127.0.0.1',
-                                                                                          dst='127.0.0.1') / \
+                                            subtype=8) / Dot11QoS(Ack_Policy=1) / LLC() / SNAP() / IP(src='127.0.0.1',
+                                                                                                      dst='127.0.0.1') / \
                          UDP(sport=self.recPort, dport=self.destPort)
 
         # Identity variables
@@ -57,7 +66,8 @@ class Radio:
         # Cryptography variables
         # Exchange variables
         self.curve = ec.SECP256R1()
-        self.ownKey = None
+        # Step 0, generate keys
+        self.ownKey = ec.generate_private_key(self.curve)
         self.targetKey = None
         self.masterSecret = None
         # ChaCha20 variables
@@ -65,11 +75,14 @@ class Radio:
         self.eEngine = None
         # Startup the radio listener thread
         self.listener = threading.Thread(target=self.wirelessReceiver)
+        self.running = True
         self.listener.start()
         # Upon initiating, attempt to connect to a second radio in order to exchange keys
         # Communications start by default on channel 36
         # Message ID's: 1 is handshake,
-        asyncio.create_task(self.handshake())
+        if ID != "GCS":  # only broadcast if you are a Drone
+            print("Sending broadcast")
+            asyncio.create_task(self.handshake())
 
     def encrypt(self, message):
         """
@@ -101,7 +114,7 @@ class Radio:
         and then send them via the wireless interface
         :return:
         """
-        while True:
+        while self.running:
             msg = await self.outputStream.read()
             if msg is None:
                 await asyncio.sleep(0.01)
@@ -143,7 +156,7 @@ class Radio:
         """
         # QGroundControl binds to port 14550 upon start, thus forward all of our received messages to there.
         # This method is used to capture the broadcast from the drone and hand it to the QGC program
-        while True:
+        while self.running:
             if not self.input.empty():
                 msg = self.input.get(False)
                 # need way to check both encrypted and decrypted
@@ -201,7 +214,7 @@ class Radio:
                     msg.extend(self.target.encode())
                     msg.extend(self.ID.encode())
                     msg.extend(self.channel.to_bytes(1, "big"))
-                    await self.send(2, msg, False) # No auth needed, if there is any response it is an auth
+                    await self.send(2, msg, False)  # No auth needed, if there is any response it is an auth
                     print("Sent cipher authentication msg")
 
                 elif int.from_bytes(msg[0:1], "big") == 2 and not self.handshakeFlag:
@@ -209,7 +222,7 @@ class Radio:
                     # Step 5, verify that the encryption keys are correct
                     print("STEP 2")
                     if msg[3:-1].decode() == self.ID + self.target and msg[-1] == self.channel:  # confirm and respond
-                        print("KEY GOOD")
+                        print("KEY GOOD + RESPONDING")
                         self.handshakeFlag = True
                         self.timers["handshake"].cancel()
                         # Now respond with the same but inverted message
@@ -304,10 +317,8 @@ class Radio:
         if self.currentSecret is None:
             # No set encryption, broadcast in the clear
             sendp(self.dataFrame / Raw(load=encodedMsg), iface=self.interface, verbose=0)
-            pass
         else:
             sendp(self.dataFrame / Raw(load=self.encrypt(encodedMsg)), iface=self.interface, verbose=0)
-            pass
         if needAck:
             # Finally, create a timer object with the ID of the message
             timer = asyncio.create_task(self.timer(messageType, self.messageID, messageContents))
@@ -342,7 +353,7 @@ class Radio:
             timer = asyncio.create_task(self.timer(messageType, ID, messageContents, attempts))
             self.timers[self.messageID] = timer
 
-    async def timer(self, messageType, messageID, messageContents, duration=0.1, attempts=5):
+    async def timer(self, messageType, messageID, messageContents, duration=0.25, attempts=5):
         """
         The timer method allows us to create asynchronous tasks to trigger a re-send action if the other device does not
         acknowledge a message in time.
@@ -365,8 +376,6 @@ class Radio:
         Initially we simply create our own key pair and broadcast connection information in the clear
         :return:
         """
-        # Step 0, generate keys
-        self.ownKey = ec.generate_private_key(self.curve)
 
         # Step 1, broadcast information
         # Initial handshake, broadcast your identity, public key, and channel
@@ -379,6 +388,10 @@ class Radio:
         msg.extend(self.ownKey.public_key().public_bytes(encoding=serialization.Encoding.OpenSSH,
                                                          format=serialization.PublicFormat.OpenSSH))
         await self.send(0, msg, False)
+
+        while self.targetKey is None:
+            await asyncio.sleep(10)
+            await self.send(0, msg, False)
 
     async def resetHandshake(self):
         """
@@ -402,3 +415,14 @@ class Radio:
 
     def getHandshakeStatus(self):
         return self.handshakeFlag
+
+    def end(self):
+        print("Trying to end")
+        self.running = False
+        self.listener.join(timeout=2) # wait 2 seconds to see if the thread joined
+        if self.listener.is_alive():
+            # force shutdown by breaking the sniff object
+            subprocess.check_output(['sudo', 'ip', 'link', 'set', self.interface, 'down'])
+            time.sleep(0.5)
+            subprocess.check_output(['sudo', 'ip', 'link', 'set', self.interface, 'up'])
+        print("Listener done")

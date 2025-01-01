@@ -1,12 +1,12 @@
 import asyncio
 import time
 
-import serial
+from serial import Serial
 
 
 class Serial_Connection:
     def __init__(self, port, messenger):
-        self.serial = serial.Serial(port, 115200, timeout=0.1)
+        self.serial = Serial(port, 115200, timeout=0.1)
         self.messenger = messenger
         self.initiate()
         self.write(0, "YYYYY")
@@ -52,7 +52,7 @@ class Serial_Connection:
             elif data[0] == 4:
                 await self.messenger.Attitude(data[1:])
 
-#Todo: If gyro fails, disconnect serial and power cycle ports. Do the same if gyro calibrate takes >15s
+
 """
     Arduino FCS telemetry rates:
         GPS: 1hz
