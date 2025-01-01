@@ -61,14 +61,14 @@ class Serial_Connection:
         battery status: 1 hz
         radio status: 1-2 hz
         virtual RC: >= 5 hz
-        
+
     Radio mavlink communication protocol
         message sent includes ID
         RPI will hold that message in reserve
         recipient will respond with a management ACK of the message ID
         RPI can drop the message from reserve
-        if message is still in reserve after set time, retransmission is made  
+        if message is still in reserve after set time, retransmission is made
         this repeats up to retransmission limit, where the packet is not returned to reserve after re-transmission
-        
+
         reserve is made of hash map/dictionary
 """

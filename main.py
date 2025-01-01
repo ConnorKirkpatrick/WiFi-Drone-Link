@@ -1,7 +1,9 @@
 import multiprocessing.queues
 
 from pymavlink.dialects.v20 import common as mavlink2
-import asyncio, os, queue
+import asyncio
+import os
+import queue
 from Communications.Radio import Radio
 from Communications.Serial import Serial_Connection
 from Mavlink import messages
@@ -28,7 +30,15 @@ async def main():
 
         outputStream = messageStore.messageStore()
         vehicle = mavlink2.MAVLink(outputStream, srcSystem=1, srcComponent=1)
-        TX = Radio(vehicle, outputStream, inputStream, ID, channel, recPort, decPort, Interface)
+        TX = Radio(
+            vehicle,
+            outputStream,
+            inputStream,
+            ID,
+            channel,
+            recPort,
+            decPort,
+            Interface)
 
         # Note: file is the address/device mavlink will try to transmit on. We will route this to our
         # own structure to allow us to encrypt and broadcast the message
@@ -39,13 +49,16 @@ async def main():
         rx = asyncio.create_task(TX.rx())
         if ID == "GCS":
             print("Detected as GCS")
-            # GCS tasks, this is the handlers to pass received messages to the mavlink socket and catch messages to transmit
+            # GCS tasks, this is the handlers to pass received messages to the
+            # mavlink socket and catch messages to transmit
             asyncio.create_task(TX.self_RX())
             pass
         elif ID.__contains__("DR"):
             print("Detected as Drone")
             while not TX.getHandshakeStatus():
-                await asyncio.sleep(0.001)  # block to prevent sending mav messages before they can be accepted
+                # block to prevent sending mav messages before they can be
+                # accepted
+                await asyncio.sleep(0.001)
             # Drone tasks, this involves things like publishing the heartbeat and telemetry
             # Either the FC will provide messages as self timed intervals, or we request messages vai timed intervals on the
             # RPI
