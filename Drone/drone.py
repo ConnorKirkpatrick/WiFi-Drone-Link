@@ -6,8 +6,8 @@ from Communications.radio import Radio
 
 
 class DroneType(Enum):
-    GCS = 0,
-    UAV = 1,
+    GCS = 0
+    UAV = 1
 
 
 class Device:
@@ -42,8 +42,10 @@ class GCS(Device):
         while True:
             if not self.receive_queue.empty():
                 msg = self.receive_queue.get(False)
+                print(msg)
 
 
 class Drone(Device):
     def __init__(self, device_type, device_id, interface, channel, port):
         super().__init__(device_type, device_id, interface, channel, port)
+        print("Drone")
