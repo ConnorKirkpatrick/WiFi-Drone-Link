@@ -1,7 +1,11 @@
 import asyncio
+import secrets
 from Crypto.Cipher import ChaCha20_Poly1305
-from cryptography.hazmat.primitives import serialization, hashes
+from Crypto.Protocol.KDF import scrypt, HKDF
+from Crypto.Hash import SHA256
+from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
+
 from multiprocessing import Queue
 
 from Communications.message_store import MessageStore
@@ -17,6 +21,7 @@ class Device:
         # Step 0, generate keys
         self._own_key = ec.generate_private_key(ec.SECP256R1())
         self._shared_secret = None
+        self._master_secret = None
         self._current_secret = None
         self._send_queue = MessageStore()
         self._receive_queue = Queue()
@@ -29,9 +34,30 @@ class Device:
                                 self._port,
                                 self._port,
                                 interface, )
+        else:
+            self._radio = None
 
     def get_queues(self):
         return [self._send_queue, self._receive_queue]
+
+    def set_own_key(self, key):
+        self._own_key = key
+
+    def set_shared_secret(self, secret, salt=secrets.randbelow(4_294_967_295)):
+        self._shared_secret = secret
+        self._master_secret = HKDF(
+            master=self._shared_secret,
+            key_len=32,
+            hashmod=SHA256,
+            salt=salt.to_bytes(32, "big"),
+            context=b"master key",
+        )
+
+        # Generate a proper key, using a fixed salt for now,
+        # possibility of adding a future change
+        self._current_secret = scrypt(
+            str(self._master_secret), "0", 32, N=1024, r=8, p=1
+        )
 
     def stop(self):
         self._radio.end()
@@ -78,6 +104,7 @@ class GCS(Device):
             if not self._receive_queue.empty():
                 msg = self._receive_queue.get(False)
                 # need way to check both encrypted and decrypted
+                self._radio.ack(msg[1:3])
                 print(msg)
                 if self._current_secret is not None:
                     dec_msg = self.decrypt(msg[0:-16], msg[-16:])
@@ -91,13 +118,17 @@ class GCS(Device):
                     # new broadcast from a drone
                     print("Creating new client")
                     self.new_client(msg)
-
-
                 elif msg_type == 3 and self._current_secret is not None:
                     # handshake challenge by client, respond with ack
                     pass
+            else:
+                await asyncio.sleep(0.01)
 
-
+    def manage_outgoing_packets(self):
+        while self._running:
+            if not self._receive_queue.empty():
+                _type, _contents, _ack = self._receive_queue.get(False)
+                self._radio.send(_type, _contents, _ack)
             else:
                 await asyncio.sleep(0.01)
 
@@ -109,9 +140,8 @@ class GCS(Device):
         self.id_map[_id] = _drone
         self.port_map[_port] = _drone
         _drone.set_send_queue(self._send_queue)
-        print("Detected drone with ID" + _id)
+        print("Detected drone with ID: " + _id)
         # Got a broadcast, respond with ID, pubKey
-
         msg = bytearray()
         msg.extend(self._id.encode())
         msg.extend(_port.to_bytes(2, "big"))
@@ -124,6 +154,10 @@ class GCS(Device):
         # await self.send(1, msg)
         print("Responded with own data....")
 
+        # generate secret with the clients key
+        _drone.set_own_key(_target_key)
+        _drone.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
+
 
 class Drone(Device):
     def __init__(self, device_id, interface, channel, port, own_device):
@@ -132,3 +166,8 @@ class Drone(Device):
 
     def set_send_queue(self, new_queue):
         self._send_queue = new_queue
+
+    def get_new_secret(self, salt=secrets.randbits(32)):
+        self._current_secret = scrypt(
+            self._master_secret, str(salt), 32, N=1024, r=8, p=1
+        )
