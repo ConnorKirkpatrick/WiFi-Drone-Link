@@ -27,7 +27,7 @@ class Radio:
         # Possibly add address filtering at this layer
         self.packet_inbox.put_nowait(pkt[Raw].load)
 
-    def stop_filter(self):
+    def stop_filter(self, _):
         return self.running is False
 
     def wireless_receiver(self):
