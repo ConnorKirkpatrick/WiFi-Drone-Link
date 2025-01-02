@@ -122,7 +122,7 @@ class GCS(Device):
                     print("Got handshake challenge")
                     # handshake challenge by client, respond with ack
                     pass
-                elif msg_type == 3:
+                elif msg_type == 4:
                     # management message
                     if msg[3] == 0:
                         # Got ACK
