@@ -86,6 +86,7 @@ class GCS(Device):
                         # this means that if we receive data such as ACK after
                         # keys are set, we can still process them
                 msg_type = int.from_bytes(msg[0:1], "big")
+                print("Message type: ", msg_type)
                 if msg_type == 0 and self._current_secret is not None:
                     # new broadcast from a drone
                     # new_client()
