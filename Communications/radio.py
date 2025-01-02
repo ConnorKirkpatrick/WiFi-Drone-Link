@@ -25,7 +25,7 @@ from scapy.packet import Raw
 class Radio:
     def input_handler(self, pkt):
         # Possibly add address filtering at this layer
-        self.input.put_nowait(pkt[Raw].load)
+        self.packet_inbox.put_nowait(pkt[Raw].load)
 
     def stop_filter(self):
         return self.running is False
@@ -43,7 +43,6 @@ class Radio:
     # noinspection too-many-positional-arguments
     def __init__(
         self,
-        vehicle,
         output_stream,
         input_stream,
         vehicle_id,
@@ -52,10 +51,9 @@ class Radio:
         dest_port,
         interface="wlan1",
     ):
-        self.vehicle = vehicle
         self.interface = interface
-        self.output_stream = output_stream
-        self.input = input_stream
+        self.packet_outbox = output_stream
+        self.packet_inbox = input_stream
         self.qgc_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.qgc_addr = ("127.0.0.1", 14550)
         self.rec_port = int(rec_port)
@@ -102,9 +100,9 @@ class Radio:
         # Upon initiating, attempt to connect to a second radio in order to exchange keys
         # Communications start by default on channel 36
         # Message ID's: 1 is handshake,
-        if vehicle_id != "GCS":  # only broadcast if you are a Drone
-            print("Sending broadcast")
-            asyncio.create_task(self.handshake())
+        # if vehicle_id != "GCS":  # only broadcast if you are a Drone
+        #     print("Sending broadcast")
+        #     asyncio.create_task(self.handshake())
 
     def encrypt(self, message):
         """
@@ -142,7 +140,7 @@ class Radio:
         :return:
         """
         while self.running:
-            msg = await self.output_stream.read()
+            msg = await self.packet_outbox.read()
             if msg is None:
                 await asyncio.sleep(0.01)
             else:
@@ -186,8 +184,8 @@ class Radio:
         # This method is used to capture the broadcast from the drone and hand
         # it to the QGC program
         while self.running:
-            if not self.input.empty():
-                msg = self.input.get(False)
+            if not self.packet_inbox.empty():
+                msg = self.packet_inbox.get(False)
                 # need way to check both encrypted and decrypted
                 if self.current_secret is not None:
                     dec_msg = self.decrypt(msg[0:-16], msg[-16:])
@@ -355,7 +353,7 @@ class Radio:
             msg = b"4" + self.id.encode() + msg
             # push the QGC message to the wireless interface with added
             # message code and self ID
-            self.output_stream.write(msg)
+            self.packet_outbox.write(msg)
 
     async def send(self, message_type, message_contents, need_ack=True):
         """

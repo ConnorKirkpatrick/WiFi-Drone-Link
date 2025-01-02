@@ -1,10 +1,10 @@
-import queue
+from multiprocessing import Queue
 
 
 class MessageStore:
 
     def __init__(self):
-        self.store = queue.Queue()
+        self.store = Queue()
 
     def write(self, data):
         self.store.put(data)

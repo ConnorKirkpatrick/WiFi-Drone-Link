@@ -7,10 +7,10 @@ from pymavlink.dialects.v20 import common as mavlink2
 from Communications.radio import Radio
 
 from initialise import initialise_wifi, reset_wifi
-import message_store
+from Communications import message_store
+from Drone.drone import Drone, DroneType
 
 
-inputStream = multiprocessing.Queue()
 
 
 async def main():
@@ -27,37 +27,49 @@ async def main():
         dec_port = config.readline().split(":")[1].strip("\n")
         config.close()
 
-        output_stream = message_store.MessageStore()
-        vehicle = mavlink2.MAVLink(output_stream, srcSystem=1, srcComponent=1)
-        device_radio = Radio(
-            vehicle,
-            output_stream,
-            inputStream,
-            device_id,
-            channel,
-            rec_port,
-            dec_port,
-            interface,
-        )
+        packet_outbox = message_store.MessageStore()
+        inputStream = multiprocessing.Queue()
+        if device_id == "GCS":
+            print("Detected as GCS")
+            drone = Drone(DroneType.GCS, "GCS")
+            # GCS tasks, this is the handlers to pass received messages to the
+            # mavlink socket and catch messages to transmit
+            device_radio = Radio(
+                packet_outbox,
+                inputStream,
+                device_id,
+                channel,
+                rec_port,
+                dec_port,
+                interface,
+            )
+            asyncio.create_task(device_radio.self_rx())
+        elif "DR" in device_id:
+            print("Detected as Drone")
+
+
+
+            # while not device_radio.get_handshake_status():
+            #     # block to prevent sending mav messages before they can be
+            #     # accepted
+            #     await asyncio.sleep(0.001)
+
+
+
+
+
+
+
+
 
         # Note: file is the address/device mavlink will try to transmit on. We will route this to our
         # own structure to allow us to encrypt and broadcast the message
 
         # Global tasks, start these for both ground station and drone
         #   Radio Tasks
-        asyncio.create_task(device_radio.tx())
-        asyncio.create_task(device_radio.rx())
-        if device_id == "GCS":
-            print("Detected as GCS")
-            # GCS tasks, this is the handlers to pass received messages to the
-            # mavlink socket and catch messages to transmit
-            asyncio.create_task(device_radio.self_rx())
-        elif "DR" in device_id:
-            print("Detected as Drone")
-            while not device_radio.get_handshake_status():
-                # block to prevent sending mav messages before they can be
-                # accepted
-                await asyncio.sleep(0.001)
+        #asyncio.create_task(device_radio.tx())
+        #asyncio.create_task(device_radio.rx())
+
             # Drone tasks, this involves things like publishing the heartbeat and telemetry
             # Either the FC will provide messages as self timed intervals, or we request messages vai timed intervals
             # on the RPI
