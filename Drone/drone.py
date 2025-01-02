@@ -144,7 +144,7 @@ class GCS(Device):
 
     async def manage_outgoing_packets(self):
         while self._running:
-            if self._send_queue.get_size() is not 0:
+            if self._send_queue.get_size() != 0:
                 _type, _contents, _ack = self._send_queue.read()
                 self._radio.send(_type, _contents, _ack)
             else:
