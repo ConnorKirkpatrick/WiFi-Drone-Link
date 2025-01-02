@@ -5,7 +5,7 @@ import threading
 import time
 
 import scapy.interfaces
-from Crypto.Cipher import ChaCha20_Poly1305
+
 from Crypto.Protocol.KDF import scrypt
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -104,34 +104,7 @@ class Radio:
         #     print("Sending broadcast")
         #     asyncio.create_task(self.handshake())
 
-    def encrypt(self, message):
-        """
-        Small function used to manage the act of creating a unique encryption item as required by pycryptodome
-        :param message: [String] The plaintext we want to encrypt
-        :return: [Bytes] The encrypted message
-        """
-        self.encryption_engine = ChaCha20_Poly1305.new(
-            key=self.current_secret, nonce=b"00000000"
-        )
-        return b"".join(self.encryption_engine.encrypt_and_digest(message))
 
-    # potentially think of storing and using the past message MAC as the next nonce for our message
-    # the last mac we generated during encryption is the next mac we use to
-    # decrypt
-    def decrypt(self, message, mac):
-        """
-        Small function used to manage the act of creating a unique decryption item as required by pycryptodome
-        :param message: [bytes] the encrypted message
-        :param mac: [bytes] the associated MAC code
-        :return: [String or None] returns the plaintext or none if the decryption fails
-        """
-        self.encryption_engine = ChaCha20_Poly1305.new(
-            key=self.current_secret, nonce=b"00000000"
-        )
-        try:
-            return self.encryption_engine.decrypt_and_verify(message, mac)
-        except (ValueError, TypeError):
-            return None
 
     async def tx(self):
         """

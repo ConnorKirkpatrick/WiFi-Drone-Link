@@ -32,19 +32,7 @@ async def main():
         inputStream = multiprocessing.Queue()
         if device_id == "GCS":
             print("Detected as GCS")
-            device = GCS(DroneType.GCS, "GCS", interface, channel, rec_port)
-            # GCS tasks, this is the handlers to pass received messages to the
-            # mavlink socket and catch messages to transmit
-            # device_radio = Radio(
-            #     packet_outbox,
-            #     inputStream,
-            #     device_id,
-            #     channel,
-            #     rec_port,
-            #     dec_port,
-            #     interface,
-            # )
-            # asyncio.create_task(device_radio.self_rx())
+            device = GCS("GCS", interface, channel, rec_port, True)
         elif "DR" in device_id:
             print("Detected as Drone")
 
