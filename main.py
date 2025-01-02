@@ -14,6 +14,7 @@ from Drone.drone import Drone, DroneType
 
 
 async def main():
+    device = None
     try:
         print("Started")
         initialise_wifi()
@@ -31,7 +32,7 @@ async def main():
         inputStream = multiprocessing.Queue()
         if device_id == "GCS":
             print("Detected as GCS")
-            drone = Drone(DroneType.GCS, "GCS", interface, channel, rec_port)
+            device = Drone(DroneType.GCS, "GCS", interface, channel, rec_port)
             # GCS tasks, this is the handlers to pass received messages to the
             # mavlink socket and catch messages to transmit
             # device_radio = Radio(
@@ -87,7 +88,7 @@ async def main():
             await asyncio.sleep(1)
     except asyncio.CancelledError:
         print("Cancelling")
-        device_radio.end()
+        device.stop()
         reset_wifi()
     # mav.gps_raw_int_send()
     # mav.attitude_send()

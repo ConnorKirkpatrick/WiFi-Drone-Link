@@ -32,6 +32,9 @@ class Device:
     def get_queues(self):
         return [self.send_queue, self.receive_queue]
 
+    def stop(self):
+        self.radio.end()
+
 
 class GCS(Device):
     def __init__(self, device_type, device_id, interface, channel, port):
