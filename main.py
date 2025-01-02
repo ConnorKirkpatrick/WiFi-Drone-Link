@@ -8,7 +8,7 @@ from Communications.radio import Radio
 
 from initialise import initialise_wifi, reset_wifi
 from Communications import message_store
-from Drone.drone import Drone, DroneType
+from Drone.drone import GCS, Drone, DroneType
 
 
 
@@ -32,7 +32,7 @@ async def main():
         inputStream = multiprocessing.Queue()
         if device_id == "GCS":
             print("Detected as GCS")
-            device = Drone(DroneType.GCS, "GCS", interface, channel, rec_port)
+            device = GCS(DroneType.GCS, "GCS", interface, channel, rec_port)
             # GCS tasks, this is the handlers to pass received messages to the
             # mavlink socket and catch messages to transmit
             # device_radio = Radio(
