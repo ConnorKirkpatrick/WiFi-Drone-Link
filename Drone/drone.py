@@ -72,13 +72,12 @@ class GCS(Device):
         except (ValueError, TypeError):
             return None
 
-
-
     async def manage_incoming_packets(self):
         while self._running:
             if not self._receive_queue.empty():
                 msg = self._receive_queue.get(False)
                 # need way to check both encrypted and decrypted
+                print(msg)
                 if self._current_secret is not None:
                     dec_msg = self.decrypt(msg[0:-16], msg[-16:])
                     if dec_msg is not None:  # if decrypted properly, make msg the decrypted value
@@ -119,7 +118,7 @@ class GCS(Device):
                 format=serialization.PublicFormat.OpenSSH,
             )
         )
-        #await self.send(1, msg)
+        # await self.send(1, msg)
         print("Responded with own data....")
 
 
