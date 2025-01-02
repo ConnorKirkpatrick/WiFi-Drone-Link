@@ -124,7 +124,7 @@ class GCS(Device):
             else:
                 await asyncio.sleep(0.01)
 
-    def manage_outgoing_packets(self):
+    async def manage_outgoing_packets(self):
         while self._running:
             if not self._receive_queue.empty():
                 _type, _contents, _ack = self._receive_queue.get(False)
