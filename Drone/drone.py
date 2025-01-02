@@ -122,6 +122,23 @@ class GCS(Device):
                     print("Got handshake challenge")
                     # handshake challenge by client, respond with ack
                     pass
+                elif msg_type == 3:
+                    # management message
+                    if msg[3] == 0:
+                        # Got ACK
+                        print("Got ACK for:",int.from_bytes(msg[4:], "big"))
+                        # key = int.from_bytes(msg[4:], "big")
+                        # try:
+                        #     timer = self.timers.pop(key)
+                        #     while not timer.cancel():
+                        #         timer = self.timers.pop(key)
+                        #         await asyncio.sleep(0.0001)
+                        #     print("Terminated timer successfully")
+                        # except KeyError:
+                        #     pass
+                    else:
+                        self.ack(msg[1:3])
+
             else:
                 await asyncio.sleep(0.01)
 
