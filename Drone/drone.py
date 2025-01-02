@@ -150,7 +150,7 @@ class GCS(Device):
             else:
                 await asyncio.sleep(0.01)
 
-    def new_client(self, msg):
+    async def new_client(self, msg):
         _id = msg[4:7].decode()
         _target_key = serialization.load_ssh_public_key(msg[8:])
         _port = 5001
