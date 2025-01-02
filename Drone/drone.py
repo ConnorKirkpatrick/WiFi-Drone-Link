@@ -118,7 +118,7 @@ class GCS(Device):
                     # new broadcast from a drone
                     print("Creating new client")
                     self.new_client(msg)
-                elif msg_type == 3 and self._current_secret is not None:
+                elif msg_type == 2 and self._current_secret is not None:
                     print("Got handshake challenge")
                     # handshake challenge by client, respond with ack
                     pass
@@ -126,7 +126,7 @@ class GCS(Device):
                     # management message
                     if msg[3] == 0:
                         # Got ACK
-                        print("Got ACK for:",int.from_bytes(msg[4:], "big"))
+                        print("Got ACK for:", int.from_bytes(msg[4:], "big"))
                         # key = int.from_bytes(msg[4:], "big")
                         # try:
                         #     timer = self.timers.pop(key)
@@ -137,15 +137,15 @@ class GCS(Device):
                         # except KeyError:
                         #     pass
                     else:
-                        self.ack(msg[1:3])
+                        self._radio.ack(msg[1:3])
 
             else:
                 await asyncio.sleep(0.01)
 
     async def manage_outgoing_packets(self):
         while self._running:
-            if not self._receive_queue.empty():
-                _type, _contents, _ack = self._receive_queue.get(False)
+            if self._send_queue.get_size() is not 0:
+                _type, _contents, _ack = self._send_queue.read()
                 self._radio.send(_type, _contents, _ack)
             else:
                 await asyncio.sleep(0.01)
@@ -153,7 +153,7 @@ class GCS(Device):
     def new_client(self, msg):
         _id = msg[4:7].decode()
         _target_key = serialization.load_ssh_public_key(msg[8:])
-        _port = 5005
+        _port = 5001
         _drone = Drone(_id, "", "", _port, False)
         self.id_map[_id] = _drone
         self.port_map[_port] = _drone
@@ -169,7 +169,8 @@ class GCS(Device):
                 format=serialization.PublicFormat.OpenSSH,
             )
         )
-        # await self.send(1, msg)
+        await self._send_queue.write([1, msg, True])
+        print(msg)
         print("Responded with own data....")
 
         # generate secret with the clients key
