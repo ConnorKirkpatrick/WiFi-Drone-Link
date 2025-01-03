@@ -104,7 +104,7 @@ class GCS(Device):
             if not self._receive_queue.empty():
                 msg = self._receive_queue.get(False)
                 # need way to check both encrypted and decrypted
-                self._radio.ack(msg[1:3])
+                # self._radio.ack(msg[1:3]) fix in future so we don't just ack every message, only those that need it
                 print(msg)
                 if self._current_secret is not None:
                     dec_msg = self.decrypt(msg[0:-16], msg[-16:])
@@ -119,6 +119,7 @@ class GCS(Device):
                     print("Creating new client")
                     await self.new_client(msg)
                 elif msg_type == 2 and self._current_secret is not None:
+                    self._radio.ack(msg[1:3])
                     print("Got handshake challenge")
                     # handshake challenge by client, respond with ack
                     pass
@@ -170,7 +171,6 @@ class GCS(Device):
             )
         )
         self._send_queue.write([1, msg, True])
-        print(msg)
         print("Responded with own data....")
 
         # generate secret with the clients key
