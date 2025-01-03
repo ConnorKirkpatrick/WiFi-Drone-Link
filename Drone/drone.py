@@ -106,6 +106,7 @@ class GCS(Device):
                 msg = self._receive_queue.get(False)
                 # need way to check both encrypted and decrypted
                 # self._radio.ack(msg[1:3]) fix in future so we don't just ack every message, only those that need it
+                print("New incoming message")
                 print(msg)
                 if self._current_secret is not None:
                     dec_msg = self.decrypt(msg[0:-16], msg[-16:])
@@ -180,10 +181,16 @@ class GCS(Device):
         _drone.set_own_key(_target_key)
         _drone.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
 
+        await asyncio.sleep(10)
+        if not _drone.active:
+            del self.id_map[_id]
+            del self.port_map[_port]
+
 
 class Drone(Device):
     def __init__(self, device_id, interface, channel, port, own_device):
         super().__init__(device_id, interface, channel, port, own_device)
+        self._active = False
         print("Drone")
 
     def set_send_queue(self, new_queue):
@@ -193,3 +200,7 @@ class Drone(Device):
         self._current_secret = scrypt(
             self._master_secret, str(salt), 32, N=1024, r=8, p=1
         )
+
+    @property
+    def active(self):
+        return self._active
