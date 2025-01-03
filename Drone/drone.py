@@ -169,6 +169,7 @@ class GCS(Device):
                 format=serialization.PublicFormat.OpenSSH,
             )
         )
+        print(msg)
         await self._send_queue.write([1, msg, True])
         print(msg)
         print("Responded with own data....")
