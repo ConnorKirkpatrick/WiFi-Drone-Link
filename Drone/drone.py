@@ -69,6 +69,7 @@ class GCS(Device):
         self.id_map = {}  # {id:[obj]}
         self.port_map = {}  # {port:[obj]}
         asyncio.create_task(self.manage_incoming_packets())
+        asyncio.create_task(self.manage_outgoing_packets())
 
     def encrypt(self, message):
         """
