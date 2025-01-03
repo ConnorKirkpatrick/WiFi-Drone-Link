@@ -42,14 +42,14 @@ class Radio:
 
     # noinspection too-many-positional-arguments
     def __init__(
-        self,
-        output_stream,
-        input_stream,
-        vehicle_id,
-        channel,
-        rec_port,
-        dest_port,
-        interface="wlan1",
+            self,
+            output_stream,
+            input_stream,
+            vehicle_id,
+            channel,
+            rec_port,
+            dest_port,
+            interface="wlan1",
     ):
         self.interface = interface
         self.packet_outbox = output_stream
@@ -59,19 +59,19 @@ class Radio:
         self.rec_port = int(rec_port)
         self.dest_port = int(dest_port)
         self.data_frame = (
-            RadioTap()
-            / Dot11(
-                addr1="00:00:00:00:00:00",
-                addr2="00:00:00:00:00:00",
-                addr3="00:00:00:00:00:00",
-                type=2,
-                subtype=8,
-            )
-            / Dot11QoS(Ack_Policy=1)
-            / LLC()
-            / SNAP()
-            / IP(src="127.0.0.1", dst="127.0.0.1")
-            / UDP(sport=self.rec_port, dport=self.dest_port)
+                RadioTap()
+                / Dot11(
+            addr1="00:00:00:00:00:00",
+            addr2="00:00:00:00:00:00",
+            addr3="00:00:00:00:00:00",
+            type=2,
+            subtype=8,
+        )
+                / Dot11QoS(Ack_Policy=1)
+                / LLC()
+                / SNAP()
+                / IP(src="127.0.0.1", dst="127.0.0.1")
+                / UDP(sport=self.rec_port, dport=self.dest_port)
         )
 
         # Identity variables
@@ -104,8 +104,6 @@ class Radio:
         #     print("Sending broadcast")
         #     asyncio.create_task(self.handshake())
 
-
-
     async def tx(self):
         """
         The Transmission method is used by the drone mainly. This will take the packets sent via the vehicle object
@@ -113,16 +111,16 @@ class Radio:
         :return:
         """
         while self.running:
-            msg = await self.packet_outbox.read()
+            msg = self.packet_outbox.read()
             if msg is None:
                 await asyncio.sleep(0.01)
             else:
                 # Wrap this data correctly with management IDs
                 if msg[3] == 0:
                     # don't need an ack for the heartbeat
-                    await self.send(3, msg, False)
+                    self.send(3, msg, False)
                 else:
-                    await self.send(3, msg)
+                    self.send(3, msg)
 
                 # If the packet is type 3 (mavlink) we should store it in the reserve under the mavlink ID
                 # we should also create and store a time in the retransmission store for this message
@@ -133,7 +131,7 @@ class Radio:
         resp = bytearray()
         resp.extend(code.to_bytes(1, "big"))
         resp.extend(message_id)
-        asyncio.create_task(self.send(4, resp, False))
+        self.send(4, resp, False)
 
     # noinspection too-many-branches
     async def rx(self):
@@ -163,7 +161,7 @@ class Radio:
                 if self.current_secret is not None:
                     dec_msg = self.decrypt(msg[0:-16], msg[-16:])
                     if (
-                        dec_msg is not None
+                            dec_msg is not None
                     ):  # if decrypted properly, make msg the decrypted value
                         msg = dec_msg
                         # this means that if we receive data such as ACK after
@@ -194,7 +192,7 @@ class Radio:
                             format=serialization.PublicFormat.OpenSSH,
                         )
                     )
-                    await self.send(1, msg)
+                    self.send(1, msg)
                     print("Responded with own data....")
 
                     # Generate initial shared secret
@@ -246,7 +244,7 @@ class Radio:
                     msg.extend(self.id.encode())
                     msg.extend(self.channel.to_bytes(1, "big"))
                     # No auth needed, if there is any response it is an auth
-                    await self.send(2, msg, False)
+                    self.send(2, msg, False)
                     print("Sent cipher authentication msg")
 
                 elif int.from_bytes(msg[0:1], "big") == 2 and not self.handshake_flag:
@@ -254,8 +252,8 @@ class Radio:
                     # Step 5, verify that the encryption keys are correct
                     print("STEP 2")
                     if (
-                        msg[3:-1].decode() == self.id + self.target
-                        and msg[-1] == self.channel
+                            msg[3:-1].decode() == self.id + self.target
+                            and msg[-1] == self.channel
                     ):  # confirm and respond
                         print("KEY GOOD + RESPONDING")
                         self.handshake_flag = True
@@ -266,7 +264,7 @@ class Radio:
                         msg.extend(self.target.encode())
                         msg.extend(self.id.encode())
                         msg.extend(zero.to_bytes(1, "big"))
-                        await self.send(2, msg)
+                        self.send(2, msg)
                     # confirm without response
                     elif msg[3:-1].decode() == self.id + self.target and msg[-1] == 0:
                         print("KEY GOOD")
@@ -328,7 +326,7 @@ class Radio:
             # message code and self ID
             self.packet_outbox.write(msg)
 
-    async def send(self, message_type, message_contents, need_ack=True):
+    def send(self, message_type, message_contents, need_ack=True):
         """
         This method manages sending data via SCAPY in the correct way.
         Serialisation:
@@ -372,7 +370,7 @@ class Radio:
             # increment the counter, so it is ready for the next message
         self.message_id += 1
 
-    async def re_send(self, message_type, message_id, message_contents, attempts):
+    def re_send(self, message_type, message_id, message_contents, attempts):
         """
         The re-send method is functionally identical to the send method except it will take a fixed message ID of the
         old message rather than generating a new one. We can also check how many more times to attempt to send this
@@ -409,7 +407,7 @@ class Radio:
             self.timers[self.message_id] = timer
 
     async def timer(
-        self, message_type, message_id, message_contents, duration=0.25, attempts=5
+            self, message_type, message_id, message_contents, duration=0.25, attempts=5
     ):
         """
         The timer method allows us to create asynchronous tasks to trigger a re-send action if the other device does not
@@ -425,7 +423,7 @@ class Radio:
         # re-sending
         await asyncio.sleep(duration)
         print("Timer triggered")
-        await self.re_send(message_type, message_id, message_contents, attempts)
+        self.re_send(message_type, message_id, message_contents, attempts)
         await asyncio.sleep(0.0001)
 
     async def handshake(self):
@@ -450,11 +448,11 @@ class Radio:
                 format=serialization.PublicFormat.OpenSSH,
             )
         )
-        await self.send(0, msg, False)
+        self.send(0, msg, False)
 
         while self.target_key is None:
             await asyncio.sleep(10)
-            await self.send(0, msg, False)
+            self.send(0, msg, False)
 
     async def reset_handshake(self):
         """
@@ -478,7 +476,7 @@ class Radio:
                 format=serialization.PublicFormat.OpenSSH,
             )
         )
-        await self.send(0, msg, False)
+        self.send(0, msg, False)
 
     def get_handshake_status(self):
         return self.handshake_flag
