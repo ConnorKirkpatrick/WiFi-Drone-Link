@@ -117,7 +117,7 @@ class GCS(Device):
                 if msg_type == 0 and self._current_secret is None:
                     # new broadcast from a drone
                     print("Creating new client")
-                    self.new_client(msg)
+                    await self.new_client(msg)
                 elif msg_type == 2 and self._current_secret is not None:
                     print("Got handshake challenge")
                     # handshake challenge by client, respond with ack
