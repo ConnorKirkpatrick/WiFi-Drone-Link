@@ -196,20 +196,7 @@ class Drone(Device):
         if own_device:
             asyncio.create_task(self.manage_incoming_packets())
             asyncio.create_task(self.manage_outgoing_packets())
-            # send broadcast
-            msg_id = 0
-            msg = bytearray()
-            msg.extend(msg_id.to_bytes(1, "big"))
-            msg.extend(
-                self._own_key.public_key().public_bytes(
-                    encoding=serialization.Encoding.OpenSSH,
-                    format=serialization.PublicFormat.OpenSSH,
-                )
-            )
-
-            while not self._active:
-                self._send_queue.write([0, msg, False])
-                await asyncio.sleep(10)
+            asyncio.create_task(self.broadcast())
 
     def set_send_queue(self, new_queue):
         self._send_queue = new_queue
@@ -277,6 +264,21 @@ class Drone(Device):
                 self._radio.send(_type, _contents, _ack)
             else:
                 await asyncio.sleep(0.01)
+
+    async def broadcast(self):
+        msg_id = 0
+        msg = bytearray()
+        msg.extend(msg_id.to_bytes(1, "big"))
+        msg.extend(
+            self._own_key.public_key().public_bytes(
+                encoding=serialization.Encoding.OpenSSH,
+                format=serialization.PublicFormat.OpenSSH,
+            )
+        )
+
+        while not self._active:
+            self._send_queue.write([0, msg, False])
+            await asyncio.sleep(10)
 
     @property
     def active(self):
