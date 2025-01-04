@@ -113,7 +113,7 @@ class GCS(Device):
                         msg = dec_msg
                         # this means that if we receive data such as ACK after
                         # keys are set, we can still process them
-                if msg[3:5].decode() == self._id:
+                if msg[3:6].decode() == self._id:
                     print("Discarded packet as own transmission")
                     return
                 msg_type = int.from_bytes(msg[0:1], "big")
@@ -221,9 +221,9 @@ class Drone(Device):
                         # this means that if we receive data such as ACK after
                         # keys are set, we can still process them
                 # check if message is from ourselves
-                print(msg[3:5])
-                print(msg[3:5].decode())
-                if msg[3:5].decode() == self._id:
+                print(msg[3:6])
+                print(msg[3:6].decode())
+                if msg[3:6].decode() == self._id:
                     print("Discarded packet as own transmission")
                     return
 
