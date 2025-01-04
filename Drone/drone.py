@@ -59,18 +59,6 @@ class Device:
             str(self._master_secret), "0", 32, N=1024, r=8, p=1
         )
 
-    def stop(self):
-        self._radio.end()
-
-
-class GCS(Device):
-    def __init__(self, device_id, interface, channel, port, own_device):
-        super().__init__(device_id, interface, channel, port, own_device)
-        self.id_map = {}  # {id:[obj]}
-        self.port_map = {}  # {port:[obj]}
-        asyncio.create_task(self.manage_incoming_packets())
-        asyncio.create_task(self.manage_outgoing_packets())
-
     def encrypt(self, message):
         """
         Small function used to manage the act of creating a unique encryption item as required by pycryptodome
@@ -100,12 +88,23 @@ class GCS(Device):
         except (ValueError, TypeError):
             return None
 
+    def stop(self):
+        self._radio.end()
+
+
+class GCS(Device):
+    def __init__(self, device_id, interface, channel, port, own_device):
+        super().__init__(device_id, interface, channel, port, own_device)
+        self.id_map = {}  # {id:[obj]}
+        self.port_map = {}  # {port:[obj]}
+        asyncio.create_task(self.manage_incoming_packets())
+        asyncio.create_task(self.manage_outgoing_packets())
+
     async def manage_incoming_packets(self):
         while self._running:
             if not self._receive_queue.empty():
                 msg = self._receive_queue.get(False)
                 # need way to check both encrypted and decrypted
-                # self._radio.ack(msg[1:3]) fix in future so we don't just ack every message, only those that need it
                 print("New incoming message")
                 print(msg)
                 if self._current_secret is not None:
@@ -158,15 +157,14 @@ class GCS(Device):
     async def new_client(self, msg):
         _id = msg[4:7].decode()
         _target_key = serialization.load_ssh_public_key(msg[8:])
-        _port = 5001
+        _port = 5005
         _drone = Drone(_id, "", "", _port, False)
         self.id_map[_id] = _drone
         self.port_map[_port] = _drone
         _drone.set_send_queue(self._send_queue)
         print("Detected drone with ID: " + _id)
-        # Got a broadcast, respond with ID, pubKey
+        # Got a broadcast, respond with ID, pubKey, port
         msg = bytearray()
-        msg.extend(self._id.encode())
         msg.extend(_port.to_bytes(2, "big"))
         msg.extend(
             self._own_key.public_key().public_bytes(
@@ -191,6 +189,9 @@ class Drone(Device):
     def __init__(self, device_id, interface, channel, port, own_device):
         super().__init__(device_id, interface, channel, port, own_device)
         self._active = False
+        self._gcs = None
+        asyncio.create_task(self.manage_incoming_packets())
+        asyncio.create_task(self.manage_outgoing_packets())
         print("Drone")
 
     def set_send_queue(self, new_queue):
@@ -200,6 +201,61 @@ class Drone(Device):
         self._current_secret = scrypt(
             self._master_secret, str(salt), 32, N=1024, r=8, p=1
         )
+
+    async def manage_incoming_packets(self):
+        while self._running:
+            if not self._receive_queue.empty():
+                msg = self._receive_queue.get(False)
+                # need way to check both encrypted and decrypted
+                print("New incoming message")
+                print(msg)
+                if self._current_secret is not None:
+                    dec_msg = self.decrypt(msg[0:-16], msg[-16:])
+                    if dec_msg is not None:  # if decrypted properly, make msg the decrypted value
+                        msg = dec_msg
+                        # this means that if we receive data such as ACK after
+                        # keys are set, we can still process them
+                msg_type = int.from_bytes(msg[0:1], "big")
+                print("Message type:", msg_type)
+                if msg_type == 1 and self._current_secret is None:
+                    # Broadcast response
+                    self._radio.ack(msg[1:3])
+                    print("got broadcast response")
+                    pass
+                elif msg_type == 3 and self._current_secret is not None:
+                    self._radio.ack(msg[1:3])
+                    print("Got handshake challenge response")
+                    # handshake challenge by client, respond with ack
+                    pass
+                elif msg_type == 4:
+                    # management message
+                    if msg[3] == 0:
+                        # Got ACK
+                        print("Got ACK for:", int.from_bytes(msg[4:], "big"))
+                        # key = int.from_bytes(msg[4:], "big")
+                        # try:
+                        #     timer = self.timers.pop(key)
+                        #     while not timer.cancel():
+                        #         timer = self.timers.pop(key)
+                        #         await asyncio.sleep(0.0001)
+                        #     print("Terminated timer successfully")
+                        # except KeyError:
+                        #     pass
+                    else:
+                        self._radio.ack(msg[1:3])
+
+            else:
+                await asyncio.sleep(0.01)
+
+    async def manage_outgoing_packets(self):
+        while self._running:
+            if self._send_queue.get_size() != 0:
+                _type, _contents, _ack = self._send_queue.read()
+                print("Got new outgoing packet:")
+                print(_type, _contents, _ack)
+                self._radio.send(_type, _contents, _ack)
+            else:
+                await asyncio.sleep(0.01)
 
     @property
     def active(self):

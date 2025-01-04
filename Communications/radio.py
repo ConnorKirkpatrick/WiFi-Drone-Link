@@ -346,6 +346,7 @@ class Radio:
         """
         encoded_msg = bytearray()
         encoded_msg.extend(message_type.to_bytes(1, "big"))
+        encoded_msg.extend(self.id.encode())
         # 2 byte value, ID's from 0-65536
         encoded_msg.extend(self.message_id.to_bytes(2, "big"))
         encoded_msg.extend(message_contents)
