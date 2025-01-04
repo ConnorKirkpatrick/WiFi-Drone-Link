@@ -190,9 +190,21 @@ class Drone(Device):
         super().__init__(device_id, interface, channel, port, own_device)
         self._active = False
         self._gcs = None
-        asyncio.create_task(self.manage_incoming_packets())
-        asyncio.create_task(self.manage_outgoing_packets())
         print("Drone")
+        if own_device:
+            asyncio.create_task(self.manage_incoming_packets())
+            asyncio.create_task(self.manage_outgoing_packets())
+            # send broadcast
+            msg_id = 0
+            msg = bytearray()
+            msg.extend(msg_id.to_bytes(1, "big"))
+            msg.extend(
+                self._own_key.public_key().public_bytes(
+                    encoding=serialization.Encoding.OpenSSH,
+                    format=serialization.PublicFormat.OpenSSH,
+                )
+            )
+            self._send_queue.write([0, msg, False])
 
     def set_send_queue(self, new_queue):
         self._send_queue = new_queue

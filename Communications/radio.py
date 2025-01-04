@@ -345,11 +345,12 @@ class Radio:
         :return:
         """
         encoded_msg = bytearray()
-        encoded_msg.extend(message_type.to_bytes(1, "big"))
-        encoded_msg.extend(self.id.encode())
+        encoded_msg.extend(message_type.to_bytes(1, "big"))  # [0]
+
         # 2 byte value, ID's from 0-65536
-        encoded_msg.extend(self.message_id.to_bytes(2, "big"))
-        encoded_msg.extend(message_contents)
+        encoded_msg.extend(self.message_id.to_bytes(2, "big"))  # [1,2]
+        encoded_msg.extend(self.id.encode())  # [3,4,5]
+        encoded_msg.extend(message_contents)  # [6:]
 
         if self.current_secret is None:
             # No set encryption, broadcast in the clear
