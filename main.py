@@ -35,7 +35,7 @@ async def main():
             device = GCS("GCS", interface, channel, rec_port, True)
         elif "DR" in device_id:
             print("Detected as Drone")
-
+            device = Drone(device_id, interface, channel, rec_port, True)
 
 
             # while not device_radio.get_handshake_status():
