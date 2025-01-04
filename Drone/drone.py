@@ -105,8 +105,7 @@ class GCS(Device):
             if not self._receive_queue.empty():
                 msg = self._receive_queue.get(False)
                 # need way to check both encrypted and decrypted
-                print("New incoming message")
-                print(msg)
+
                 if self._current_secret is not None:
                     dec_msg = self.decrypt(msg[0:-16], msg[-16:])
                     if dec_msg is not None:  # if decrypted properly, make msg the decrypted value
@@ -114,8 +113,9 @@ class GCS(Device):
                         # this means that if we receive data such as ACK after
                         # keys are set, we can still process them
                 if msg[3:6].decode() == self._id:
-                    print("Discarded packet as own transmission")
                     return
+                print("New incoming message")
+                print(msg)
                 msg_type = int.from_bytes(msg[0:1], "big")
                 print("Message type:", msg_type)
                 if msg_type == 0 and self._current_secret is None:
@@ -212,8 +212,7 @@ class Drone(Device):
             if not self._receive_queue.empty():
                 msg = self._receive_queue.get(False)
                 # need way to check both encrypted and decrypted
-                print("New incoming message")
-                print(msg)
+
                 if self._current_secret is not None:
                     dec_msg = self.decrypt(msg[0:-16], msg[-16:])
                     if dec_msg is not None:  # if decrypted properly, make msg the decrypted value
@@ -221,12 +220,10 @@ class Drone(Device):
                         # this means that if we receive data such as ACK after
                         # keys are set, we can still process them
                 # check if message is from ourselves
-                print(msg[3:6])
-                print(msg[3:6].decode())
                 if msg[3:6].decode() == self._id:
-                    print("Discarded packet as own transmission")
                     return
-
+                print("New incoming message")
+                print(msg)
                 msg_type = int.from_bytes(msg[0:1], "big")
                 print("Message type:", msg_type)
                 if msg_type == 1 and self._current_secret is None:
