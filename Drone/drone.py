@@ -206,7 +206,10 @@ class Drone(Device):
                     format=serialization.PublicFormat.OpenSSH,
                 )
             )
-            self._send_queue.write([0, msg, False])
+
+            while not self._active:
+                self._send_queue.write([0, msg, False])
+                await asyncio.sleep(10)
 
     def set_send_queue(self, new_queue):
         self._send_queue = new_queue
