@@ -148,7 +148,7 @@ class GCS(Device):
 
     async def manage_outgoing_packets(self):
         while self._running:
-            if self._send_queue.get_size() != 0:
+            if not self._send_queue.empty():
                 _type, _contents, _ack = self._send_queue.read()
                 print("Got new outgoing packet:")
                 print(_type, _contents, _ack)
@@ -257,7 +257,7 @@ class Drone(Device):
 
     async def manage_outgoing_packets(self):
         while self._running:
-            if self._send_queue.get_size() != 0:
+            if not self._send_queue.empty():
                 _type, _contents, _ack = self._send_queue.read()
                 print("Got new outgoing packet:")
                 print(_type, _contents, _ack)

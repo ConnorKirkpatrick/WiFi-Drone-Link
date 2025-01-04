@@ -10,9 +10,9 @@ class MessageStore:
         self.store.put(data)
 
     def read(self):
-        if self.get_size() < 1:
+        if self.store.empty():
             return None
         return self.store.get_nowait()
 
-    def get_size(self):
-        return self.store.qsize()
+    def empty(self):
+        return self.store.empty()
