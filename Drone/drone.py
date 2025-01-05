@@ -1,5 +1,6 @@
 import asyncio
 import secrets
+
 from Crypto.Cipher import ChaCha20_Poly1305
 from Crypto.Protocol.KDF import scrypt, HKDF
 from Crypto.Hash import SHA256
@@ -16,7 +17,8 @@ class Device:
     def __init__(self, device_id, interface, channel, port, own_device=False):
         self._id = device_id
         self._port = port
-
+        self._active = False
+        self._message_id = 0
         self._encryption_engine = None
         # Step 0, generate keys
         self._own_key = ec.generate_private_key(ec.SECP256R1())
@@ -58,6 +60,7 @@ class Device:
         self._current_secret = scrypt(
             str(self._master_secret), "0", 32, N=1024, r=8, p=1
         )
+        self._radio._current_secret = self._current_secret
 
     def encrypt(self, message):
         """
@@ -87,6 +90,37 @@ class Device:
             return self._encryption_engine.decrypt_and_verify(message, mac)
         except (ValueError, TypeError):
             return None
+
+    def send(self, message_type, message_contents, need_ack=True):
+        """
+        This method manages sending data via SCAPY in the correct way.
+        Serialisation:
+            [0] : The first byte is always the packet type, this can be 0-4, representing handshake packets 0-2, or
+            mavlink (3), or management (4) frames
+            [1,2] : The second and third bytes are the ID values for the packet, allowing each to be uniquely identified
+            [3:-1] : bytes 3 onwards is the main content of the packet
+        for each packet sent, we can select if it needs an acknowledgment message. If this is true, as it is by default,
+        the method will create a new asynchronous task that will trigger the re-send method with the same data after a
+        designated time. If an ACK is received before this time, the object can be fetched from the self.timers
+        dictionary and canceled
+
+        :param message_type: [Int] Data identifying the packet type
+        :param message_contents: [ByteArray] The contents of the packet
+        :param need_ack: [Bool]: A flag that will determine if the system will need an ACK or not to confirm receipt
+        :return:
+        """
+        encoded_msg = bytearray()
+        encoded_msg.extend(message_type.to_bytes(1, "big"))  # [0]
+
+        # 2 byte value, ID's from 0-65536
+        encoded_msg.extend(self._message_id.to_bytes(2, "big"))  # [1,2]
+        encoded_msg.extend(self._id.encode())  # [3,4,5]
+        encoded_msg.extend(message_contents)  # [6:]
+
+        # manage encryption
+        if self._current_secret is not None:
+            encoded_msg = self.encrypt(encoded_msg)
+        self._radio.send(encoded_msg, need_ack)
 
     def stop(self):
         self._radio.end()
@@ -230,7 +264,7 @@ class Drone(Device):
                     # Broadcast response
                     self._radio.ack(msg[1:3])
                     print("got broadcast response")
-                    pass
+                    self.handshake_challenge(msg)
                 elif msg_type == 3 and self._current_secret is not None:
                     self._radio.ack(msg[1:3])
                     print("Got handshake challenge response")
@@ -279,6 +313,21 @@ class Drone(Device):
         while not self._active:
             self._send_queue.write([0, msg, False])
             await asyncio.sleep(10)
+
+    def handshake_challenge(self, msg):
+        self._gcs = GCS(msg[3:6].decode(), "", "", 5002, False)
+        # generate secret with the clients key
+        _target_key = serialization.load_ssh_public_key(msg[6:])
+        self._gcs.set_own_key(_target_key)
+        self._gcs.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
+
+        msg = bytearray()
+        msg.extend(self._gcs._id.encode())
+        msg.extend(self._id.encode())
+        self._send_queue.write([2, msg, False])
+        print("Responded with own data....")
+
+
 
     @property
     def active(self):

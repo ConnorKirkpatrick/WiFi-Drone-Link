@@ -51,6 +51,8 @@ class Radio:
             dest_port,
             interface="wlan1",
     ):
+        self._current_secret = None
+        self._encryption_engine = None
         self.interface = interface
         self.packet_outbox = output_stream
         self.packet_inbox = input_stream
@@ -103,6 +105,72 @@ class Radio:
         # if vehicle_id != "GCS":  # only broadcast if you are a Drone
         #     print("Sending broadcast")
         #     asyncio.create_task(self.handshake())
+
+    def send(self, message_contents, need_ack=True):
+        """
+        This method manages sending data via SCAPY in the correct way.
+        :param message_contents: [ByteArray] The contents of the packet
+        :param need_ack: [Bool]: A flag that will determine if the system will need an ACK or not to confirm receipt
+        :return:
+        """
+
+        sendp(
+            self.data_frame / Raw(load=message_contents), iface=self.interface, verbose=0
+        )
+
+        if need_ack:
+            # Finally, create a timer object with the ID of the message
+            timer = asyncio.create_task(
+                self.timer(message_contents)
+            )
+            self.timers[self.message_id] = timer
+            # increment the counter, so it is ready for the next message
+        self.message_id += 1
+
+    async def timer(self, message_contents, duration=0.25, attempts=5):
+        """
+        The timer method allows us to create asynchronous tasks to trigger a re-send action if the other device does not
+        acknowledge a message in time.
+        :param message_contents: [ByteArray] the payload of the overall message
+        :param duration: [Float] The time to wait before triggering a re-send in seconds
+        :param attempts: [Int] The number of times to try to re-send
+        :return:
+        """
+        # TOD: Check why the channel value of the broadcast disappears when
+        # re-sending
+        await asyncio.sleep(duration)
+        print("Timer triggered")
+        self.re_send(message_contents, attempts)
+        await asyncio.sleep(0.0001)
+
+    def re_send(self, message_contents, attempts):
+        """
+        The re-send method is functionally identical to the send method except it will take a fixed message ID of the
+        old message rather than generating a new one. We can also check how many more times to attempt to send this
+        message
+
+        :param message_contents: [ByteArray] The contents of the packet
+        :param attempts: [Int] The remaining attempts to re-send
+        :return:
+        """
+        sendp(
+            self.data_frame / Raw(load=message_contents), iface=self.interface, verbose=0
+        )
+        attempts += -1
+        if attempts >= 1:
+            timer = asyncio.create_task(
+                self.timer(message_contents, attempts)
+            )
+            self.timers[self.message_id] = timer
+
+
+
+
+
+
+
+
+
 
     async def tx(self):
         """
@@ -326,107 +394,7 @@ class Radio:
             # message code and self ID
             self.packet_outbox.write(msg)
 
-    def send(self, message_type, message_contents, need_ack=True):
-        """
-        This method manages sending data via SCAPY in the correct way.
-        Serialisation:
-            [0] : The first byte is always the packet type, this can be 0-4, representing handshake packets 0-2, or
-            mavlink (3), or management (4) frames
-            [1,2] : The second and third bytes are the ID values for the packet, allowing each to be uniquely identified
-            [3:-1] : bytes 3 onwards is the main content of the packet
-        for each packet sent, we can select if it needs an acknowledgment message. If this is true, as it is by default,
-        the method will create a new asynchronous task that will trigger the re-send method with the same data after a
-        designated time. If an ACK is received before this time, the object can be fetched from the self.timers
-        dictionary and canceled
 
-        :param message_type: [Int] Data identifying the packet type
-        :param message_contents: [ByteArray] The contents of the packet
-        :param need_ack: [Bool]: A flag that will determine if the system will need an ACK or not to confirm receipt
-        :return:
-        """
-        encoded_msg = bytearray()
-        encoded_msg.extend(message_type.to_bytes(1, "big"))  # [0]
-
-        # 2 byte value, ID's from 0-65536
-        encoded_msg.extend(self.message_id.to_bytes(2, "big"))  # [1,2]
-        encoded_msg.extend(self.id.encode())  # [3,4,5]
-        encoded_msg.extend(message_contents)  # [6:]
-
-        if self.current_secret is None:
-            # No set encryption, broadcast in the clear
-            sendp(
-                self.data_frame / Raw(load=encoded_msg), iface=self.interface, verbose=0
-            )
-        else:
-            sendp(
-                self.data_frame / Raw(load=self.encrypt(encoded_msg)),
-                iface=self.interface,
-                verbose=0,
-            )
-        if need_ack:
-            # Finally, create a timer object with the ID of the message
-            timer = asyncio.create_task(
-                self.timer(message_type, self.message_id, message_contents)
-            )
-            self.timers[self.message_id] = timer
-            # increment the counter, so it is ready for the next message
-        self.message_id += 1
-
-    def re_send(self, message_type, message_id, message_contents, attempts):
-        """
-        The re-send method is functionally identical to the send method except it will take a fixed message ID of the
-        old message rather than generating a new one. We can also check how many more times to attempt to send this
-        message
-        :param message_type: [Int] Data identifying the packet type
-        :param message_id: [Int] 2 bytes that make up the ID of the message
-        :param message_contents: [ByteArray] The contents of the packet
-        :param attempts: [Int] The remaining attempts to re-send
-        :return:
-        """
-        encoded_msg = bytearray()
-        encoded_msg.extend(message_type.to_bytes(1, "big"))
-        # 2 byte value, ID's from 0-65536
-        encoded_msg.extend(message_id.to_bytes(2, "big"))
-        encoded_msg.extend(message_contents)
-        if self.current_secret is None:
-            # No set encryption, broadcast in the clear
-            sendp(
-                self.data_frame / Raw(load=encoded_msg), iface=self.interface, verbose=0
-            )
-
-        else:
-            sendp(
-                self.data_frame / Raw(load=self.encrypt(encoded_msg)),
-                iface=self.interface,
-                verbose=0,
-            )
-
-        attempts += -1
-        if attempts >= 1:
-            timer = asyncio.create_task(
-                self.timer(message_type, message_id, message_contents, attempts)
-            )
-            self.timers[self.message_id] = timer
-
-    async def timer(
-            self, message_type, message_id, message_contents, duration=0.25, attempts=5
-    ):
-        """
-        The timer method allows us to create asynchronous tasks to trigger a re-send action if the other device does not
-        acknowledge a message in time.
-        :param message_type: [Int] the type of message
-        :param message_id: [Int] 2 bytes that make up the ID of the message
-        :param message_contents: [ByteArray] the payload of the overall message
-        :param duration: [Float] The time to wait before triggering a re-send in seconds
-        :param attempts: [Int] The number of times to try to re-send
-        :return:
-        """
-        # TOD: Check why the channel value of the broadcast disappears when
-        # re-sending
-        await asyncio.sleep(duration)
-        print("Timer triggered")
-        self.re_send(message_type, message_id, message_contents, attempts)
-        await asyncio.sleep(0.0001)
 
     async def handshake(self):
         """
