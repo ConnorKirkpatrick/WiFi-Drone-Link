@@ -36,7 +36,7 @@ class Radio:
         sniff(
             iface="wlan1",
             prn=self.input_handler,
-            filter="udp and host 127.0.0.1 and dst port " + str(self.rec_port),
+            filter="udp and host 127.0.0.1",
             stop_filter=self.stop_filter,
         )
 
