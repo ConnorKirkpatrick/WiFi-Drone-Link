@@ -159,7 +159,7 @@ class GCS(Device):
 
     async def new_client(self, msg):
         _id = msg[3:6].decode()
-        _target_key = serialization.load_ssh_public_key(msg[8:])
+        _target_key = serialization.load_ssh_public_key(msg[6:])
         _port = 5005
         _drone = Drone(_id, "", "", _port, False)
         self.id_map[_id] = _drone
