@@ -158,7 +158,7 @@ class GCS(Device):
                 await asyncio.sleep(0.01)
 
     async def new_client(self, msg):
-        _id = msg[4:7].decode()
+        _id = msg[3:6].decode()
         _target_key = serialization.load_ssh_public_key(msg[8:])
         _port = 5005
         _drone = Drone(_id, "", "", _port, False)
@@ -269,7 +269,6 @@ class Drone(Device):
     async def broadcast(self):
         msg_id = 0
         msg = bytearray()
-        msg.extend(msg_id.to_bytes(1, "big"))
         msg.extend(
             self._own_key.public_key().public_bytes(
                 encoding=serialization.Encoding.OpenSSH,
