@@ -60,7 +60,6 @@ class Device:
         self._current_secret = scrypt(
             str(self._master_secret), "0", 32, N=1024, r=8, p=1
         )
-        self._radio._current_secret = self._current_secret
 
     def encrypt(self, message):
         """
