@@ -187,7 +187,7 @@ class GCS(Device):
                 _type, _contents, _ack = self._send_queue.read()
                 print("Got new outgoing packet:")
                 print(_type, _contents, _ack)
-                self._radio.send(_type, _contents, _ack)
+                self.send(_type, _contents, _ack)
             else:
                 await asyncio.sleep(0.01)
 
@@ -291,7 +291,7 @@ class Drone(Device):
                 _type, _contents, _ack = self._send_queue.read()
                 print("Got new outgoing packet:")
                 print(_type, _contents, _ack)
-                self._radio.send(_type, _contents, _ack)
+                self.send(_type, _contents, _ack)
             else:
                 await asyncio.sleep(0.01)
 
