@@ -236,11 +236,6 @@ class Drone(Device):
     def set_send_queue(self, new_queue):
         self._send_queue = new_queue
 
-    def get_new_secret(self, salt=secrets.randbits(32)):
-        self._current_secret = scrypt(
-            self._master_secret, str(salt), 32, N=1024, r=8, p=1
-        )
-
     async def manage_incoming_packets(self):
         while self._running:
             if not self._receive_queue.empty():
