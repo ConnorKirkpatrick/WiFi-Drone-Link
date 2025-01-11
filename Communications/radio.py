@@ -199,7 +199,7 @@ class Radio:
         resp = bytearray()
         resp.extend(code.to_bytes(1, "big"))
         resp.extend(message_id)
-        self.send(4, resp, False)
+        self.send(resp, False)
 
     # noinspection too-many-branches
     async def rx(self):
