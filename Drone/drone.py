@@ -309,6 +309,9 @@ class Drone(Device):
             await asyncio.sleep(10)
 
     def handshake_challenge(self, msg):
+        print(msg)
+        print(msg[3:6].decode())
+        print(msg[6:])
         self._gcs = GCS(msg[3:6].decode(), "", "", 5002, False)
         # generate secret with the clients key
         _target_key = serialization.load_ssh_public_key(msg[6:])
