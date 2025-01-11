@@ -109,6 +109,7 @@ class Device:
         :param need_ack: [Bool]: A flag that will determine if the system will need an ACK or not to confirm receipt
         :return:
         """
+
         encoded_msg = bytearray()
         encoded_msg.extend(message_type.to_bytes(1, "big"))  # [0]
 
@@ -116,6 +117,9 @@ class Device:
         encoded_msg.extend(self._message_id.to_bytes(2, "big"))  # [1,2]
         encoded_msg.extend(self._id.encode())  # [3,4,5]
         encoded_msg.extend(message_contents)  # [6:]
+
+        print("Got new outgoing packet:")
+        print(encoded_msg)
 
         # manage encryption
         if self._current_secret is not None:
@@ -194,8 +198,6 @@ class GCS(Device):
         while self._running:
             if not self._send_queue.empty():
                 _type, _contents, _ack = self._send_queue.read()
-                print("Got new outgoing packet:")
-                print(_type, _contents, _ack)
                 self.send(_type, _contents, _ack)
             else:
                 await asyncio.sleep(0.01)
@@ -305,8 +307,6 @@ class Drone(Device):
         while self._running:
             if not self._send_queue.empty():
                 _type, _contents, _ack = self._send_queue.read()
-                print("Got new outgoing packet:")
-                print(_type, _contents, _ack)
                 self.send(_type, _contents, _ack)
             else:
                 await asyncio.sleep(0.01)
