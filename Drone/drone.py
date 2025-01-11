@@ -97,7 +97,8 @@ class Device:
             [0] : The first byte is always the packet type, this can be 0-4, representing handshake packets 0-2, or
             mavlink (3), or management (4) frames
             [1,2] : The second and third bytes are the ID values for the packet, allowing each to be uniquely identified
-            [3:-1] : bytes 3 onwards is the main content of the packet
+            [3,4,5]: This contains the ID of the sending platform
+            [6:] : bytes 6 onwards is the main content of the packet
         for each packet sent, we can select if it needs an acknowledgment message. If this is true, as it is by default,
         the method will create a new asynchronous task that will trigger the re-send method with the same data after a
         designated time. If an ACK is received before this time, the object can be fetched from the self.timers
@@ -122,11 +123,12 @@ class Device:
         self._radio.send(encoded_msg, need_ack)
 
     def send_ack(self, message_id):
+        print("sending ack for id " + message_id.from_bytes(2,"big"))
         msg = bytearray()
         code = 4
-        msg.extend(code.to_bytes(1,"big"))
+        msg.extend(code.to_bytes(1, "big"))
         msg.extend(message_id)
-        self.send(4,msg,False)
+        self.send(4, msg, False)
 
     def stop(self):
         self._radio.end()
@@ -346,8 +348,6 @@ class Drone(Device):
         msg.extend(self._gcs._id.encode())
         self._send_queue.write([2, msg, False])
         print("Responded with own data....")
-
-
 
     @property
     def active(self):
