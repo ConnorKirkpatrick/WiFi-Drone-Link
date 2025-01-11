@@ -176,7 +176,7 @@ class GCS(Device):
                     pass
                 elif msg_type == 4:
                     # management message
-                    if msg[3] == 0:
+                    if msg[6] == 0:
                         # Got ACK
                         print("Got ACK for:", int.from_bytes(msg[4:], "big"))
                         # key = int.from_bytes(msg[4:], "big")
@@ -274,7 +274,6 @@ class Drone(Device):
                 print("Message type:", msg_type)
                 if msg_type == 1 and self._current_secret is None:
                     # Broadcast response
-                    print(msg[1:3])
                     self.send_ack(msg[1:3])
                     print("got broadcast response")
                     self.handshake_challenge(msg)
@@ -285,7 +284,7 @@ class Drone(Device):
                     pass
                 elif msg_type == 4:
                     # management message
-                    if msg[3] == 0:
+                    if msg[6] == 0:
                         # Got ACK
                         print("Got ACK for:", int.from_bytes(msg[4:], "big"))
                         # key = int.from_bytes(msg[4:], "big")
