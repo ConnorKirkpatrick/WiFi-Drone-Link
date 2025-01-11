@@ -165,6 +165,7 @@ class GCS(Device):
                     print("Creating new client")
                     await self.new_client(msg)
                 elif msg_type == 2 and self._current_secret is not None:
+                    print(msg[1:3])
                     self.send_ack(msg[1:3])
                     print("Got handshake challenge")
                     # handshake challenge by client, respond with ack
