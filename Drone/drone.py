@@ -121,6 +121,13 @@ class Device:
             encoded_msg = self.encrypt(encoded_msg)
         self._radio.send(encoded_msg, need_ack)
 
+    def send_ack(self, message_id):
+        msg = bytearray()
+        code = 4
+        msg.extend(code.to_bytes(1,"big"))
+        msg.extend(message_id)
+        self.send(4,msg,False)
+
     def stop(self):
         self._radio.end()
 
@@ -156,7 +163,7 @@ class GCS(Device):
                     print("Creating new client")
                     await self.new_client(msg)
                 elif msg_type == 2 and self._current_secret is not None:
-                    self._radio.ack(msg[1:3])
+                    self.send_ack(msg[1:3])
                     print("Got handshake challenge")
                     # handshake challenge by client, respond with ack
                     pass
@@ -175,7 +182,7 @@ class GCS(Device):
                         # except KeyError:
                         #     pass
                     else:
-                        self._radio.ack(msg[1:3])
+                        self.send_ack(msg[1:3])
 
             else:
                 await asyncio.sleep(0.01)
@@ -200,6 +207,12 @@ class GCS(Device):
         _drone.set_send_queue(self._send_queue)
         print("Detected drone with ID: " + _id)
         # Got a broadcast, respond with ID, pubKey, port
+        # format:
+        # [0] type
+        # [1,2] msg_id
+        # [3,4,5] device id
+        # [6,7] port
+        # [8:] key
         msg = bytearray()
         msg.extend(_port.to_bytes(2, "big"))
         msg.extend(
@@ -260,7 +273,7 @@ class Drone(Device):
                     print("got broadcast response")
                     self.handshake_challenge(msg)
                 elif msg_type == 3 and self._current_secret is not None:
-                    self._radio.ack(msg[1:3])
+                    self.send_ack(msg[1:3])
                     print("Got handshake challenge response")
                     # handshake challenge by client, respond with ack
                     pass
@@ -279,7 +292,7 @@ class Drone(Device):
                         # except KeyError:
                         #     pass
                     else:
-                        self._radio.ack(msg[1:3])
+                        self.send_ack(msg[1:3])
 
             else:
                 await asyncio.sleep(0.01)
@@ -295,6 +308,11 @@ class Drone(Device):
                 await asyncio.sleep(0.01)
 
     async def broadcast(self):
+        # format:
+        # [0] type
+        # [1,2] msg_id
+        # [3,4,5] device id
+        # [6:] key
         msg_id = 0
         msg = bytearray()
         msg.extend(
@@ -319,9 +337,13 @@ class Drone(Device):
         self._gcs.set_own_key(_target_key)
         self._gcs.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
 
+        # format:
+        # [0] type
+        # [1,2] msg_id
+        # [3,4,5] device id
+        # [6,7,8] gcs id
         msg = bytearray()
         msg.extend(self._gcs._id.encode())
-        msg.extend(self._id.encode())
         self._send_queue.write([2, msg, False])
         print("Responded with own data....")
 

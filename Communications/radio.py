@@ -195,6 +195,7 @@ class Radio:
                 # If the timer triggers, it pulls the message from the linked store and re-transmits it
 
     def ack(self, message_id):
+        print("Sending ack for message id "+message_id)
         code = 0
         resp = bytearray()
         resp.extend(code.to_bytes(1, "big"))
