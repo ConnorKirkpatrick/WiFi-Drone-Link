@@ -339,7 +339,7 @@ class Drone(Device):
         _target_key = serialization.load_ssh_public_key(_key)
         self._gcs.set_own_key(_target_key)
         self._gcs.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
-
+        self.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
         # format:
         # [0] type
         # [1,2] msg_id
