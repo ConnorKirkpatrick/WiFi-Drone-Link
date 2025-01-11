@@ -123,7 +123,7 @@ class Device:
         self._radio.send(encoded_msg, need_ack)
 
     def send_ack(self, message_id):
-        print("sending ack for id " + message_id.from_bytes(2,"big"))
+        print("sending ack for id " + message_id.decode())
         msg = bytearray()
         code = 4
         msg.extend(code.to_bytes(1, "big"))
