@@ -124,6 +124,8 @@ class Device:
         # manage encryption
         if self._current_secret is not None:
             encoded_msg = self.encrypt(encoded_msg)
+            print("Encrypted outgoing message:")
+            print(encoded_msg)
         self._radio.send(encoded_msg, need_ack)
 
     def send_ack(self, message_id):
@@ -176,7 +178,7 @@ class GCS(Device):
                     # management message
                     if msg[6] == 0:
                         # Got ACK
-                        print("Got ACK for:", int.from_bytes(msg[4:], "big"))
+                        print("Got ACK for:", int.from_bytes(msg[7:], "big"))
                         # key = int.from_bytes(msg[4:], "big")
                         # try:
                         #     timer = self.timers.pop(key)
