@@ -326,6 +326,7 @@ class Drone(Device):
         )
 
         while not self._active:
+            self._current_secret = None
             self._send_queue.write([0, msg, False])
             await asyncio.sleep(10)
 
@@ -340,6 +341,7 @@ class Drone(Device):
         self._gcs.set_own_key(_target_key)
         self._gcs.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
         self.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
+        print("key set")
         # format:
         # [0] type
         # [1,2] msg_id
