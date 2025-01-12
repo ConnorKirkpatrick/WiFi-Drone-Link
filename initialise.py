@@ -39,7 +39,7 @@ def initialise_wifi(wifi_adaptor="wlan1"):
     time.sleep(0.3)
     subprocess.check_output(["sudo", "ip", "link", "set", wifi_adaptor, "up"])
     time.sleep(0.3)
-    subprocess.check_output(["sudo", "iw", wifi_adaptor, "set", "channel", "12"])
+    subprocess.check_output(["sudo", "iw", wifi_adaptor, "set", "channel", "11"])
     time.sleep(1)
     return wifi_adaptor
 
