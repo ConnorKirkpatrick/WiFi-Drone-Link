@@ -319,8 +319,7 @@ class Drone(Device):
 
         while not self._active:
             self._current_secret = None
-            # self._send_queue.write([0, msg, False])
-            self.send_ack(1)
+            self._send_queue.write([0, msg, False])
             await asyncio.sleep(10)
 
     def handshake_challenge(self, msg):
