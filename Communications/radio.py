@@ -141,7 +141,6 @@ class Radio:
         await asyncio.sleep(duration)
         print("Timer triggered")
         self.re_send(message_contents, attempts)
-        await asyncio.sleep(0.0001)
 
     def re_send(self, message_contents, attempts):
         """
@@ -156,22 +155,29 @@ class Radio:
         sendp(
             self.data_frame / Raw(load=message_contents), iface=self.interface, verbose=0
         )
-        attempts += -1
+        attempts -= 1
         if attempts >= 1:
             timer = asyncio.create_task(
                 self.timer(message_contents, attempts)
             )
             self.timers[self.message_id] = timer
 
+    def end(self):
+        print("Trying to end")
+        self.running = False
+        # wait 2 seconds to see if the thread joined
+        self.listener.join(timeout=2)
+        if self.listener.is_alive():
+            # force shutdown by breaking the sniff object
+            print("Forcefully resetting the wireless adapter, you will see a warning:")
+            subprocess.check_output(
+                ["sudo", "ip", "link", "set", self.interface, "down"]
+            )
+            time.sleep(0.5)
+            subprocess.check_output(["sudo", "ip", "link", "set", self.interface, "up"])
+        print("Listener done")
 
-
-
-
-
-
-
-
-
+########################################################################################################################
     async def tx(self):
         """
         The Transmission method is used by the drone mainly. This will take the packets sent via the vehicle object
@@ -195,7 +201,7 @@ class Radio:
                 # If the timer triggers, it pulls the message from the linked store and re-transmits it
 
     def ack(self, message_id):
-        print("Sending ack for message id "+message_id)
+        print("Sending ack for message id " + message_id)
         code = 0
         resp = bytearray()
         resp.extend(code.to_bytes(1, "big"))
@@ -395,8 +401,6 @@ class Radio:
             # message code and self ID
             self.packet_outbox.write(msg)
 
-
-
     async def handshake(self):
         """
         The handshake method kicks off a cryptographical handshake between two devices to establish a secure channel
@@ -452,17 +456,4 @@ class Radio:
     def get_handshake_status(self):
         return self.handshake_flag
 
-    def end(self):
-        print("Trying to end")
-        self.running = False
-        # wait 2 seconds to see if the thread joined
-        self.listener.join(timeout=2)
-        if self.listener.is_alive():
-            # force shutdown by breaking the sniff object
-            print("Forcefully resetting the wireless adapter, you will see a warning:")
-            subprocess.check_output(
-                ["sudo", "ip", "link", "set", self.interface, "down"]
-            )
-            time.sleep(0.5)
-            subprocess.check_output(["sudo", "ip", "link", "set", self.interface, "up"])
-        print("Listener done")
+
