@@ -135,6 +135,15 @@ class Device:
         msg.extend(message_id)
         self.send(4, msg, False)
 
+    async def manage_outgoing_packets(self):
+        while self._running:
+            if not self._send_queue.empty():
+                _type, _contents, _ack = self._send_queue.read()
+                self.send(_type, _contents, _ack)
+            else:
+                await asyncio.sleep(0.01)
+
+
     def stop(self):
         self._radio.end()
 
@@ -194,13 +203,7 @@ class GCS(Device):
             else:
                 await asyncio.sleep(0.01)
 
-    async def manage_outgoing_packets(self):
-        while self._running:
-            if not self._send_queue.empty():
-                _type, _contents, _ack = self._send_queue.read()
-                self.send(_type, _contents, _ack)
-            else:
-                await asyncio.sleep(0.01)
+
 
     async def new_client(self, msg):
         _id = msg[3:6].decode()
@@ -302,14 +305,6 @@ class Drone(Device):
             else:
                 await asyncio.sleep(0.01)
 
-    async def manage_outgoing_packets(self):
-        while self._running:
-            if not self._send_queue.empty():
-                _type, _contents, _ack = self._send_queue.read()
-                self.send(_type, _contents, _ack)
-            else:
-                await asyncio.sleep(0.01)
-
     async def broadcast(self):
         # format:
         # [0] type
@@ -349,7 +344,7 @@ class Drone(Device):
         # [6,7,8] gcs id
         msg = bytearray()
         msg.extend(self._gcs._id.encode())
-        self._send_queue.write([2, msg, False])
+        self._send_queue.write([2, msg, True])
         print("Responded with own data....")
 
     @property
