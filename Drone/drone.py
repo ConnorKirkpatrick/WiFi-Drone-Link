@@ -90,7 +90,7 @@ class Device:
         except (ValueError, TypeError):
             return None
 
-    def send(self, message_type, message_contents, need_ack=True):
+    def send(self, frame_type, message_contents, need_ack=True):
         """
         This method manages sending data via SCAPY in the correct way.
         Serialisation:
@@ -104,14 +104,14 @@ class Device:
         designated time. If an ACK is received before this time, the object can be fetched from the self.timers
         dictionary and canceled
 
-        :param message_type: [Int] Data identifying the packet type
+        :param frame_type: [Int] Data identifying the packet type
         :param message_contents: [ByteArray] The contents of the packet
         :param need_ack: [Bool]: A flag that will determine if the system will need an ACK or not to confirm receipt
         :return:
         """
 
         encoded_msg = bytearray()
-        encoded_msg.extend(message_type.to_bytes(1, "big"))  # [0]
+        encoded_msg.extend(frame_type.to_bytes(1, "big"))  # [0]
 
         # 2 byte value, ID's from 0-65536
         encoded_msg.extend(self._message_id.to_bytes(2, "big"))  # [1,2]
@@ -130,7 +130,7 @@ class Device:
 
     def send_ack(self, message_id):
         msg = bytearray()
-        code = 4
+        code = 0  # management frame (4) type is ack (0)
         msg.extend(code.to_bytes(1, "big"))
         msg.extend(message_id.to_bytes(2, "big"))
         self.send(4, msg, False)
@@ -142,7 +142,6 @@ class Device:
                 self.send(_type, _contents, _ack)
             else:
                 await asyncio.sleep(0.01)
-
 
     def stop(self):
         self._radio.end()
@@ -202,8 +201,6 @@ class GCS(Device):
 
             else:
                 await asyncio.sleep(0.01)
-
-
 
     async def new_client(self, msg):
         _id = msg[3:6].decode()
@@ -322,7 +319,7 @@ class Drone(Device):
 
         while not self._active:
             self._current_secret = None
-            #self._send_queue.write([0, msg, False])
+            # self._send_queue.write([0, msg, False])
             self.send_ack(1)
             await asyncio.sleep(10)
 
