@@ -132,7 +132,7 @@ class Device:
         msg = bytearray()
         code = 4
         msg.extend(code.to_bytes(1, "big"))
-        msg.extend(message_id)
+        msg.extend(message_id.to_bytes(2, "big"))
         self.send(4, msg, False)
 
     async def manage_outgoing_packets(self):
@@ -187,7 +187,7 @@ class GCS(Device):
                     # management message
                     if msg[6] == 0:
                         # Got ACK
-                        print("Got ACK for:", int.from_bytes(msg[7:], "big"))
+                        print("Got ACK for:", int.from_bytes(msg[7:9], "big"))
                         # key = int.from_bytes(msg[4:], "big")
                         # try:
                         #     timer = self.timers.pop(key)
