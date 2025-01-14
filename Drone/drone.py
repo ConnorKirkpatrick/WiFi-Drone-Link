@@ -132,7 +132,7 @@ class Device:
         msg = bytearray()
         code = 0  # management frame (4) type is ack (0)
         msg.extend(code.to_bytes(1, "big"))
-        msg.extend(message_id.to_bytes(2, "big"))
+        msg.extend(message_id)
         self.send(4, msg, False)
 
     async def manage_outgoing_packets(self):
