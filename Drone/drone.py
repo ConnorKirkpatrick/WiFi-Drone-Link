@@ -132,7 +132,7 @@ class Device:
         msg = bytearray()
         code = 0  # management frame (4) type is ack (0)
         msg.extend(code.to_bytes(1, "big"))
-        msg.extend(message_id.to_bytes(2, "big"))
+        msg.extend(message_id)
         self.send(4, msg, False)
 
     async def manage_outgoing_packets(self):
@@ -319,7 +319,9 @@ class Drone(Device):
 
         while not self._active:
             self._current_secret = None
-            self._send_queue.write([0, msg, False])
+            #self._send_queue.write([0, msg, False])
+            test_id = 5
+            self.send_ack(test_id.to_bytes(2,"big"))
             await asyncio.sleep(10)
 
     def handshake_challenge(self, msg):
