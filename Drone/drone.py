@@ -176,7 +176,7 @@ class GCS(Device):
                 if msg_type == 0 and self._current_secret is None:
                     # new broadcast from a drone
                     print("Creating new client")
-                    asyncio.create_task(self.new_client(msg))
+                    await self.new_client(msg)
                 elif msg_type == 2 and self._current_secret is not None:
                     self.send_ack(msg[1:3])
                     print("Got handshake challenge")
@@ -232,7 +232,7 @@ class GCS(Device):
         # generate secret with the clients key
         _drone.set_own_key(_target_key)
         _drone.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
-
+        print("waiting for response")
         await asyncio.sleep(10)
         if not _drone.active:
             del self.id_map[_id]
