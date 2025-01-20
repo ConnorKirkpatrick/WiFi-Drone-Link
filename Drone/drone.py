@@ -169,7 +169,8 @@ class GCS(Device):
                         # this means that if we receive data such as ACK after
                         # keys are set, we can still process them
                 if msg[3:6].decode() == self._id:
-                    print("Got own message: "+msg)
+                    print("Got own message:")
+                    print(msg)
                     return
 
                 msg_type = int.from_bytes(msg[0:1], "big")
@@ -268,7 +269,8 @@ class Drone(Device):
                         # keys are set, we can still process them
                 # check if message is from ourselves
                 if msg[3:6].decode() == self._id:
-                    print("Got own message: " + msg)
+                    print("Got own message:")
+                    print(msg)
                     return
                 print("New incoming message")
                 print(msg)

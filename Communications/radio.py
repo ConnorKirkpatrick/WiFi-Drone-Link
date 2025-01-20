@@ -117,7 +117,8 @@ class Radio:
         sendp(
             self.data_frame / Raw(load=message_contents), iface=self.interface, verbose=0
         )
-        print("Sent: "+message_contents)
+        print("Sent: ")
+        print(message_contents)
         if need_ack:
             # Finally, create a timer object with the ID of the message
             timer = asyncio.create_task(
