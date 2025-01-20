@@ -4,8 +4,6 @@ import subprocess
 import threading
 import time
 
-from multiprocessing import Process, Queue
-
 import scapy.interfaces
 
 from Crypto.Protocol.KDF import scrypt
@@ -98,7 +96,7 @@ class Radio:
         self.current_secret = None
         self.encryption_engine = None
         # Startup the radio listener thread
-        self.listener = Process(target=self.wireless_receiver)
+        self.listener = threading.Thread(target=self.wireless_receiver)
         self.running = True
         self.listener.start()
         # Upon initiating, attempt to connect to a second radio in order to exchange keys
@@ -119,7 +117,7 @@ class Radio:
         sendp(
             self.data_frame / Raw(load=message_contents), iface=self.interface, verbose=0
         )
-
+        print("Sent: "+message_contents)
         if need_ack:
             # Finally, create a timer object with the ID of the message
             timer = asyncio.create_task(
@@ -171,7 +169,6 @@ class Radio:
         self.listener.join(timeout=2)
         if self.listener.is_alive():
             # force shutdown by breaking the sniff object
-            self.listener.kill()
             print("Forcefully resetting the wireless adapter, you will see a warning:")
             subprocess.check_output(
                 ["sudo", "ip", "link", "set", self.interface, "down"]
