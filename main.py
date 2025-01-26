@@ -8,7 +8,7 @@ from Communications.radio import Radio
 
 from initialise import initialise_wifi, reset_wifi
 from Communications import message_store
-from Drone.drone import GCS, Drone
+from Drone.device import GCS, Drone
 
 
 
