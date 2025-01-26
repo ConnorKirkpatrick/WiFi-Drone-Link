@@ -329,12 +329,12 @@ class Drone(Device):
         _id = msg[3:6].decode()
         _port = msg[6:8]
         _key = msg[8:]
-        self._gcs = GCS(_id, "", "", 5002, False)
-        # generate secret with the clients key
-        _target_key = serialization.load_ssh_public_key(_key)
-        self._gcs.set_own_key(_target_key)
-        self._gcs.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
-        self.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
+        # self._gcs = GCS(_id, "", "", 5002, False)
+        # # generate secret with the clients key
+        # _target_key = serialization.load_ssh_public_key(_key)
+        # self._gcs.set_own_key(_target_key)
+        # self._gcs.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
+        # self.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
         print("key set")
         # format:
         # [0] type
