@@ -342,7 +342,9 @@ class Drone(Device):
         # [3,4,5] device id
         # [6,7,8] gcs id
         msg = bytearray()
-        msg.extend(self._gcs._id.encode())
+        testID = "GCS"
+        msg.extend(testID.encode())
+        #msg.extend(self._gcs._id.encode())
         self._send_queue.write([2, msg, True])
         print("Responded with own data....")
 
