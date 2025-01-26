@@ -156,10 +156,10 @@ class Radio:
         sendp(
             self.data_frame / Raw(load=message_contents), iface=self.interface, verbose=0
         )
-        attempts = attempts - 1
+        attempts -= 1
         if attempts >= 1:
             timer = asyncio.create_task(
-                self.timer(message_contents, attempts)
+                self.timer(message_contents, attempts=attempts)
             )
             self.timers[self.message_id] = timer
 
