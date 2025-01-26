@@ -178,7 +178,7 @@ class GCS(Device):
                 if msg_type == 0 and self._current_secret is None:
                     # new broadcast from a drone
                     print("Got client broadcast")
-                    await self.new_client(msg)
+                    # await self.new_client(msg)
                 elif msg_type == 2 and self._current_secret is not None:
                     self.send_ack(msg[1:3])
                     print("Got handshake challenge")
@@ -278,7 +278,7 @@ class Drone(Device):
                     # Broadcast response
                     self.send_ack(msg[1:3])
                     print("got broadcast response")
-                    self.handshake_challenge(msg)
+                    # self.handshake_challenge(msg)
                 elif msg_type == 3 and self._current_secret is not None:
                     self.send_ack(msg[1:3])
                     print("Got handshake challenge response")
@@ -341,12 +341,12 @@ class Drone(Device):
         # [1,2] msg_id
         # [3,4,5] device id
         # [6,7,8] gcs id
-        msg = bytearray()
-        testID = "GCS"
-        msg.extend(testID.encode())
-        #msg.extend(self._gcs._id.encode())
-        self._send_queue.write([2, msg, True])
-        print("Responded with own data....")
+        # msg = bytearray()
+        # testID = "GCS"
+        # msg.extend(testID.encode())
+        # #msg.extend(self._gcs._id.encode())
+        # self._send_queue.write([2, msg, True])
+        # print("Responded with own data....")
 
     @property
     def active(self):
