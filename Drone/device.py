@@ -178,7 +178,7 @@ class GCS(Device):
                 if msg_type == 0 and self._current_secret is None:
                     # new broadcast from a drone
                     print("Got client broadcast")
-                    #await self.new_client(msg)
+                    await self.new_client(msg)
                 elif msg_type == 2 and self._current_secret is not None:
                     self.send_ack(msg[1:3])
                     print("Got handshake challenge")
@@ -205,14 +205,14 @@ class GCS(Device):
                 await asyncio.sleep(0.01)
 
     async def new_client(self, msg):
-        _id = msg[3:6].decode()
-        _target_key = serialization.load_ssh_public_key(msg[6:])
-        _port = 5005
+        device_id = msg[3:6].decode()
+        device_key = serialization.load_ssh_public_key(msg[6:])
+        device_port = 5005
         #_drone = Drone(_id, "", "", _port, False)
         #self.id_map[_id] = _drone
         #self.port_map[_port] = _drone
         #_drone.set_send_queue(self._send_queue)
-        print("Detected drone with ID: " + _id)
+        #print("Detected drone with ID: " + _id)
         # Got a broadcast, respond with ID, pubKey, port
         # format:
         # [0] type
@@ -221,7 +221,7 @@ class GCS(Device):
         # [6,7] port
         # [8:] key
         msg = bytearray()
-        msg.extend(_port.to_bytes(2, "big"))
+        msg.extend(device_port.to_bytes(2, "big"))
         msg.extend(
             self._own_key.public_key().public_bytes(
                 encoding=serialization.Encoding.OpenSSH,
@@ -234,11 +234,11 @@ class GCS(Device):
         # # generate secret with the clients key
         # _drone.set_own_key(_target_key)
         # _drone.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
-        # print("waiting for response")
-        # await asyncio.sleep(10)
-        # if not _drone.active:
-        #     del self.id_map[_id]
-        #     del self.port_map[_port]
+        print("waiting for response")
+        await asyncio.sleep(10)
+        #if not _drone.active:
+        #    del self.id_map[_id]
+        #    del self.port_map[_port]
 
 ########################################################################################################################
 class Drone(Device):
@@ -326,16 +326,16 @@ class Drone(Device):
 
     def handshake_challenge(self, msg):
         print(msg)
-        _id = msg[3:6].decode()
-        _port = msg[6:8]
-        _key = msg[8:]
+        device_id = msg[3:6].decode()
+        device_port = msg[6:8]
+        device_key = msg[8:]
         # self._gcs = GCS(_id, "", "", 5002, False)
         # # generate secret with the clients key
         # _target_key = serialization.load_ssh_public_key(_key)
         # self._gcs.set_own_key(_target_key)
         # self._gcs.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
         # self.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
-        print("key set")
+        # print("key set")
         # format:
         # [0] type
         # [1,2] msg_id
