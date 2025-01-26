@@ -7,7 +7,7 @@ from Crypto.Hash import SHA256
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from multiprocessing import Queue, Process
+from multiprocessing import Queue
 
 from Communications.message_store import MessageStore
 from Communications.radio import Radio
@@ -135,14 +135,13 @@ class Device:
         msg.extend(message_id)
         self.send(4, msg, False)
 
-    #async def manage_outgoing_packets(self):
-    def manage_outgoing_packets(self):
+    async def manage_outgoing_packets(self):
         while self._running:
             if not self._send_queue.empty():
                 _type, _contents, _ack = self._send_queue.read()
                 self.send(_type, _contents, _ack)
-            #else:
-            #    await asyncio.sleep(0.01)
+            else:
+                await asyncio.sleep(0.01)
 
     def stop(self):
         self._radio.end()
@@ -153,8 +152,7 @@ class GCS(Device):
         super().__init__(device_id, interface, channel, port, own_device)
         self.id_map = {}  # {id:[obj]}
         self.port_map = {}  # {port:[obj]}
-        #asyncio.create_task(self.manage_incoming_packets())
-        Process(self.manage_outgoing_packets())
+        asyncio.create_task(self.manage_incoming_packets())
         asyncio.create_task(self.manage_outgoing_packets())
 
     async def manage_incoming_packets(self):
@@ -230,14 +228,14 @@ class GCS(Device):
                 format=serialization.PublicFormat.OpenSSH,
             )
         )
-        self._send_queue.write([1, msg, False])
+        self._send_queue.write([1, msg, True])
         print("Responded with own data....")
 
         # # generate secret with the clients key
         # _drone.set_own_key(_target_key)
         # _drone.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
-        #print("waiting for response")
-        #await asyncio.sleep(10)
+        print("waiting for response")
+        await asyncio.sleep(10)
         #if not _drone.active:
         #    del self.id_map[_id]
         #    del self.port_map[_port]
@@ -251,8 +249,7 @@ class Drone(Device):
         print("Drone")
         if own_device:
             asyncio.create_task(self.manage_incoming_packets())
-            #asyncio.create_task(self.manage_outgoing_packets())
-            Process(self.manage_outgoing_packets())
+            asyncio.create_task(self.manage_outgoing_packets())
             asyncio.create_task(self.broadcast())
 
     def set_send_queue(self, new_queue):
@@ -279,9 +276,9 @@ class Drone(Device):
                 print("Message type:", msg_type)
                 if msg_type == 1 and self._current_secret is None:
                     # Broadcast response
-                    # self.send_ack(msg[1:3])
+                    self.send_ack(msg[1:3])
                     print("got broadcast response")
-                    # self.handshake_challenge(msg)
+                    self.handshake_challenge(msg)
                 elif msg_type == 3 and self._current_secret is not None:
                     self.send_ack(msg[1:3])
                     print("Got handshake challenge response")
@@ -344,12 +341,12 @@ class Drone(Device):
         # [1,2] msg_id
         # [3,4,5] device id
         # [6,7,8] gcs id
-        # msg = bytearray()
-        # testID = "GCS"
-        # msg.extend(testID.encode())
-        # #msg.extend(self._gcs._id.encode())
-        # self._send_queue.write([2, msg, True])
-        # print("Responded with own data....")
+        msg = bytearray()
+        testID = "GCS"
+        msg.extend(testID.encode())
+        #msg.extend(self._gcs._id.encode())
+        self._send_queue.write([2, msg, True])
+        print("Responded with own data....")
 
     @property
     def active(self):
