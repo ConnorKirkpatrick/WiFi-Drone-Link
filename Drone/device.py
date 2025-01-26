@@ -7,7 +7,7 @@ from Crypto.Hash import SHA256
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from multiprocessing import Queue
+from multiprocessing import Queue, Process
 
 from Communications.message_store import MessageStore
 from Communications.radio import Radio
@@ -135,13 +135,14 @@ class Device:
         msg.extend(message_id)
         self.send(4, msg, False)
 
-    async def manage_outgoing_packets(self):
+    #async def manage_outgoing_packets(self):
+    def manage_outgoing_packets(self):
         while self._running:
             if not self._send_queue.empty():
                 _type, _contents, _ack = self._send_queue.read()
                 self.send(_type, _contents, _ack)
-            else:
-                await asyncio.sleep(0.01)
+            #else:
+            #    await asyncio.sleep(0.01)
 
     def stop(self):
         self._radio.end()
@@ -152,7 +153,8 @@ class GCS(Device):
         super().__init__(device_id, interface, channel, port, own_device)
         self.id_map = {}  # {id:[obj]}
         self.port_map = {}  # {port:[obj]}
-        asyncio.create_task(self.manage_incoming_packets())
+        #asyncio.create_task(self.manage_incoming_packets())
+        Process(self.manage_outgoing_packets())
         asyncio.create_task(self.manage_outgoing_packets())
 
     async def manage_incoming_packets(self):
@@ -249,7 +251,8 @@ class Drone(Device):
         print("Drone")
         if own_device:
             asyncio.create_task(self.manage_incoming_packets())
-            asyncio.create_task(self.manage_outgoing_packets())
+            #asyncio.create_task(self.manage_outgoing_packets())
+            Process(self.manage_outgoing_packets())
             asyncio.create_task(self.broadcast())
 
     def set_send_queue(self, new_queue):
