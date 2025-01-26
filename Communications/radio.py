@@ -162,6 +162,10 @@ class Radio:
                 self.timer(message_contents, attempts=attempts)
             )
             self.timers[self.message_id] = timer
+            return
+        print("Timer completed")
+
+
 
     def end(self):
         print("Trying to end")
