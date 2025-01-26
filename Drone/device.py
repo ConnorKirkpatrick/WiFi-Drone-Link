@@ -160,6 +160,8 @@ class GCS(Device):
             if not self._receive_queue.empty():
                 msg = self._receive_queue.get(False)
                 # need way to check both encrypted and decrypted
+                if msg[3:6].decode() == self._id:
+                    return
                 print("New incoming message")
                 print(msg)
                 if self._current_secret is not None:
