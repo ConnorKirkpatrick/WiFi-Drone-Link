@@ -140,7 +140,7 @@ class Radio:
         # TOD: Check why the channel value of the broadcast disappears when
         # re-sending
         await asyncio.sleep(duration)
-        print("Timer triggered")
+        print("Timer triggered, remaining attempts:",attempts)
         self.re_send(message_contents, attempts)
 
     def re_send(self, message_contents, attempts):
