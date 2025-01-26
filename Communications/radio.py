@@ -127,6 +127,7 @@ class Radio:
             self.timers[self.message_id] = timer
             # increment the counter, so it is ready for the next message
         self.message_id += 1
+        print("Send done")
 
     async def timer(self, message_contents, duration=0.25, attempts=5):
         """
