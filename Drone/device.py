@@ -146,7 +146,7 @@ class Device:
     def stop(self):
         self._radio.end()
 
-
+########################################################################################################################
 class GCS(Device):
     def __init__(self, device_id, interface, channel, port, own_device):
         super().__init__(device_id, interface, channel, port, own_device)
@@ -240,7 +240,7 @@ class GCS(Device):
         #     del self.id_map[_id]
         #     del self.port_map[_port]
 
-
+########################################################################################################################
 class Drone(Device):
     def __init__(self, device_id, interface, channel, port, own_device):
         super().__init__(device_id, interface, channel, port, own_device)
