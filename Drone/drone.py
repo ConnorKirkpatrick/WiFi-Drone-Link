@@ -118,7 +118,7 @@ class Device:
         encoded_msg.extend(self._id.encode())  # [3,4,5]
         encoded_msg.extend(message_contents)  # [6:]
 
-        print("Got new outgoing packet:")
+        print("New outgoing packet:")
         print(encoded_msg)
 
         # manage encryption
@@ -169,8 +169,6 @@ class GCS(Device):
                         # this means that if we receive data such as ACK after
                         # keys are set, we can still process them
                 if msg[3:6].decode() == self._id:
-                    print("Got own message:")
-                    print(msg)
                     return
 
                 msg_type = int.from_bytes(msg[0:1], "big")
@@ -269,8 +267,6 @@ class Drone(Device):
                         # keys are set, we can still process them
                 # check if message is from ourselves
                 if msg[3:6].decode() == self._id:
-                    print("Got own message:")
-                    print(msg)
                     return
                 print("New incoming message")
                 print(msg)
