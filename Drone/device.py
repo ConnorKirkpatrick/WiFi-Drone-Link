@@ -228,7 +228,7 @@ class GCS(Device):
                 format=serialization.PublicFormat.OpenSSH,
             )
         )
-        # self._send_queue.write([1, msg, False])
+        self._send_queue.write([1, msg, False])
         print("Responded with own data....")
 
         # # generate secret with the clients key

@@ -7,7 +7,7 @@ class MessageStore:
         self.store = Queue()
 
     def write(self, data):
-        self.store.put(data)
+        self.store.put_nowait(data)
 
     def read(self):
         if self.store.empty():
