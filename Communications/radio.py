@@ -113,7 +113,8 @@ class Radio:
         :param need_ack: [Bool]: A flag that will determine if the system will need an ACK or not to confirm receipt
         :return:
         """
-        print("Sending message" + message_contents)
+        print("Sending message")
+        print(message_contents)
         sendp(
             self.data_frame / Raw(load=message_contents), iface=self.interface, verbose=0
         )
