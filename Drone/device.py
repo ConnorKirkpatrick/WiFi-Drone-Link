@@ -158,17 +158,14 @@ class GCS(Device):
         while self._running:
             if not self._receive_queue.empty():
                 msg = self._receive_queue.get_nowait()
-                # need way to check both encrypted and decrypted
-                if msg[3:6].decode() == self._id:
-                    return
                 print("New incoming message")
                 print(msg)
+                # need way to check both encrypted and decrypted
                 if self._current_secret is not None:
                     dec_msg = self.decrypt(msg[0:-16], msg[-16:])
-                    if dec_msg is not None:  # if decrypted properly, make msg the decrypted value
+                    if dec_msg is not None:  # if decrypted properly, make msg the decrypted value, else use plain
                         msg = dec_msg
-                        # this means that if we receive data such as ACK after
-                        # keys are set, we can still process them
+                ## check the message is not our owns
                 if msg[3:6].decode() == self._id:
                     return
 
@@ -258,19 +255,16 @@ class Drone(Device):
         while self._running:
             if not self._receive_queue.empty():
                 msg = self._receive_queue.get_nowait()
-                # need way to check both encrypted and decrypted
-
-                if self._current_secret is not None:
-                    dec_msg = self.decrypt(msg[0:-16], msg[-16:])
-                    if dec_msg is not None:  # if decrypted properly, make msg the decrypted value
-                        msg = dec_msg
-                        # this means that if we receive data such as ACK after
-                        # keys are set, we can still process them
-                # check if message is from ourselves
-                if msg[3:6].decode() == self._id:
-                    return
                 print("New incoming message")
                 print(msg)
+                # need way to check both encrypted and decrypted
+                if self._current_secret is not None:
+                    dec_msg = self.decrypt(msg[0:-16], msg[-16:])
+                    if dec_msg is not None:  # if decrypted properly, make msg the decrypted value, else use plain
+                        msg = dec_msg
+                ## check the message is not our owns
+                if msg[3:6].decode() == self._id:
+                    return
                 msg_type = int.from_bytes(msg[0:1], "big")
                 print("Message type:", msg_type)
                 if msg_type == 1 and self._current_secret is None:
