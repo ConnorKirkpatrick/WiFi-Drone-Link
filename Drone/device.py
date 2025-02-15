@@ -279,6 +279,9 @@ class Drone(Device):
                         #     pass
                     else:
                         self.send_ack(msg[1:3])
+                else:
+                    print("Unknown message obtained")
+                    print(msg)
 
             else:
                 await asyncio.sleep(0.01)
