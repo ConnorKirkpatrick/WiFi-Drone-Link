@@ -99,12 +99,6 @@ class Radio:
         self.listener = Process(target=self.wireless_receiver)
         self.running = True
         self.listener.start()
-        # Upon initiating, attempt to connect to a second radio in order to exchange keys
-        # Communications start by default on channel 36
-        # Message ID's: 1 is handshake,
-        # if vehicle_id != "GCS":  # only broadcast if you are a Drone
-        #     print("Sending broadcast")
-        #     asyncio.create_task(self.handshake())
 
     def send(self, message_contents, need_ack=True):
         """
@@ -116,8 +110,6 @@ class Radio:
         sendp(
             self.data_frame / Raw(load=message_contents), iface=self.interface, verbose=0
         )
-        #print("Sent: ")
-        #print(message_contents)
         if need_ack:
             # Finally, create a timer object with the ID of the message
             timer = asyncio.create_task(
