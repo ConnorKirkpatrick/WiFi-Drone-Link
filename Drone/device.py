@@ -157,7 +157,7 @@ class GCS(Device):
     async def manage_incoming_packets(self):
         while self._running:
             if not self._receive_queue.empty():
-                msg = self._receive_queue.get(False)
+                msg = self._receive_queue.get_nowait()
                 # need way to check both encrypted and decrypted
                 if msg[3:6].decode() == self._id:
                     return
@@ -257,7 +257,7 @@ class Drone(Device):
     async def manage_incoming_packets(self):
         while self._running:
             if not self._receive_queue.empty():
-                msg = self._receive_queue.get(False)
+                msg = self._receive_queue.get_nowait()
                 # need way to check both encrypted and decrypted
 
                 if self._current_secret is not None:
