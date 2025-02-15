@@ -158,8 +158,6 @@ class GCS(Device):
         while self._running:
             if not self._receive_queue.empty():
                 msg = self._receive_queue.get_nowait()
-                print("New incoming message")
-                print(msg)
                 # need way to check both encrypted and decrypted
                 if self._current_secret is not None:
                     dec_msg = self.decrypt(msg[0:-16], msg[-16:])
@@ -168,7 +166,8 @@ class GCS(Device):
                 # check the message is not our owns
                 if msg[3:6].decode() == self._id:
                     return
-
+                print("New incoming message")
+                print(msg)
                 msg_type = int.from_bytes(msg[0:1], "big")
                 print("Message type:", msg_type)
                 if msg_type == 0 and self._current_secret is None:
@@ -242,8 +241,6 @@ class Drone(Device):
         while self._running:
             if not self._receive_queue.empty():
                 msg = self._receive_queue.get_nowait()
-                print("New incoming message")
-                print(msg)
                 # need way to check both encrypted and decrypted
                 if self._current_secret is not None:
                     dec_msg = self.decrypt(msg[0:-16], msg[-16:])
@@ -252,6 +249,8 @@ class Drone(Device):
                 ## check the message is not our owns
                 if msg[3:6].decode() == self._id:
                     return
+                print("New incoming message")
+                print(msg)
                 msg_type = int.from_bytes(msg[0:1], "big")
                 print("Message type:", msg_type)
                 if msg_type == 1 and self._current_secret is None:
