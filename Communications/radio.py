@@ -27,11 +27,7 @@ from scapy.packet import Raw
 class Radio:
     def input_handler(self, pkt):
         # Possibly add address filtering at this layer
-        print(pkt[Raw].load)
-        try:
-            self.packet_inbox.put_nowait(pkt[Raw].load)
-        except queue.Full as e:
-            print("Queue full error")
+        self.packet_inbox.put(pkt[Raw].load, block=True, timeout=0.00001)
 
     def stop_filter(self, _):
         return self.running is False
@@ -136,7 +132,7 @@ class Radio:
         # TOD: Check why the channel value of the broadcast disappears when
         # re-sending
         await asyncio.sleep(duration)
-        print("Timer triggered, remaining attempts:",attempts)
+        print("Timer " ,self.message_id ," triggered, remaining attempts:",attempts)
         self.re_send(message_contents, attempts)
 
     def re_send(self, message_contents, attempts):
