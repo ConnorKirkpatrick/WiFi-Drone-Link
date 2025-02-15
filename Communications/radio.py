@@ -25,6 +25,7 @@ from scapy.packet import Raw
 class Radio:
     def input_handler(self, pkt):
         # Possibly add address filtering at this layer
+        print(pkt[Raw].load)
         self.packet_inbox.put_nowait(pkt[Raw].load)
 
     def stop_filter(self, _):
@@ -32,7 +33,6 @@ class Radio:
 
     def wireless_receiver(self):
         scapy.interfaces.ifaces.reload()
-
         sniff(
             iface="wlan1",
             prn=self.input_handler,
@@ -47,8 +47,7 @@ class Radio:
             input_stream,
             vehicle_id,
             channel,
-            rec_port,
-            dest_port,
+            port,
             interface="wlan1",
     ):
         self._current_secret = None
@@ -58,8 +57,8 @@ class Radio:
         self.packet_inbox = input_stream
         self.qgc_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.qgc_addr = ("127.0.0.1", 14550)
-        self.rec_port = int(rec_port)
-        self.dest_port = int(dest_port)
+        self.rec_port = int(port)
+        self.dest_port = int(port)
         self.data_frame = (
                 RadioTap()
                 / Dot11(

@@ -34,7 +34,6 @@ class Device:
                                 self._id,
                                 channel,
                                 self._port,
-                                self._port,
                                 interface, )
         else:
             self._radio = None
@@ -207,7 +206,7 @@ class GCS(Device):
     async def new_client(self, msg):
         device_id = msg[3:6].decode()
         device_key = serialization.load_ssh_public_key(msg[6:])
-        device_port = 5005
+        device_port = 5000
         _drone = Drone(device_id, "", "", device_port, False)
         self.id_map[device_id] = _drone
         self.port_map[device_port] = _drone

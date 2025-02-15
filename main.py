@@ -24,18 +24,17 @@ async def main():
         device_id = config.readline().split(":")[1].strip("\n")
         interface = config.readline().split(":")[1].strip("\n")
         channel = config.readline().split(":")[1].strip("\n")
-        rec_port = config.readline().split(":")[1].strip("\n")
-        dec_port = config.readline().split(":")[1].strip("\n")
+        initialPort = config.readline().split(":")[1].strip("\n")
         config.close()
 
         packet_outbox = message_store.MessageStore()
         inputStream = multiprocessing.Queue()
         if device_id == "GCS":
             print("Detected as GCS")
-            device = GCS("GCS", interface, channel, rec_port, True)
+            device = GCS("GCS", interface, channel, initialPort, True)
         elif "DR" in device_id:
             print("Detected as Drone")
-            device = Drone(device_id, interface, channel, rec_port, True)
+            device = Drone(device_id, interface, channel, initialPort, True)
 
 
             # while not device_radio.get_handshake_status():
