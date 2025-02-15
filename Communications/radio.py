@@ -72,7 +72,7 @@ class Radio:
             type=2,
             subtype=8,
         )
-                / Dot11QoS(TXOP=1, Ack_Policy=1)
+                / Dot11QoS(TXOP=4, Ack_Policy=1)
                 / LLC()
                 / SNAP()
                 / IP(src="127.0.0.1", dst="127.0.0.1")
