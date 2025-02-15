@@ -208,11 +208,11 @@ class GCS(Device):
         device_id = msg[3:6].decode()
         device_key = serialization.load_ssh_public_key(msg[6:])
         device_port = 5005
-        #_drone = Drone(_id, "", "", _port, False)
-        #self.id_map[_id] = _drone
-        #self.port_map[_port] = _drone
-        #_drone.set_send_queue(self._send_queue)
-        #print("Detected drone with ID: " + _id)
+        _drone = Drone(device_id, "", "", device_port, False)
+        self.id_map[device_id] = _drone
+        self.port_map[device_port] = _drone
+        _drone.set_send_queue(self._send_queue)
+        print("Detected drone with ID: " + device_id)
         # Got a broadcast, respond with ID, pubKey, port
         # format:
         # [0] type
@@ -231,9 +231,9 @@ class GCS(Device):
         self._send_queue.write([1, msg, True])
         print("Responded with own data....")
 
-        # # generate secret with the clients key
-        # _drone.set_own_key(_target_key)
-        # _drone.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
+        # generate secret with the clients key
+        _drone.set_own_key(device_key)
+        _drone.set_shared_secret(self._own_key.exchange(ec.ECDH(), device_key))
         print("waiting for response")
         await asyncio.sleep(10)
         #if not _drone.active:
