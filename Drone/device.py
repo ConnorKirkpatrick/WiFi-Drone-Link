@@ -165,7 +165,7 @@ class GCS(Device):
                     dec_msg = self.decrypt(msg[0:-16], msg[-16:])
                     if dec_msg is not None:  # if decrypted properly, make msg the decrypted value, else use plain
                         msg = dec_msg
-                ## check the message is not our owns
+                # check the message is not our owns
                 if msg[3:6].decode() == self._id:
                     return
 
@@ -204,10 +204,6 @@ class GCS(Device):
         device_id = msg[3:6].decode()
         device_key = serialization.load_ssh_public_key(msg[6:])
         device_port = 5000
-        _drone = Drone(device_id, "", "", device_port, False)
-        self.id_map[device_id] = _drone
-        self.port_map[device_port] = _drone
-        _drone.set_send_queue(self._send_queue)
         print("Detected drone with ID: " + device_id)
         # Got a broadcast, respond with ID, pubKey, port
         # format:
@@ -226,15 +222,6 @@ class GCS(Device):
         )
         self._send_queue.write([1, msg, True])
         print("Responded with own data....")
-
-        # generate secret with the clients key
-        _drone.set_own_key(device_key)
-        _drone.set_shared_secret(self._own_key.exchange(ec.ECDH(), device_key))
-        print("waiting for response")
-        await asyncio.sleep(10)
-        #if not _drone.active:
-        #    del self.id_map[_id]
-        #    del self.port_map[_port]
 
 ########################################################################################################################
 class Drone(Device):
@@ -318,28 +305,16 @@ class Drone(Device):
             await asyncio.sleep(10)
 
     def handshake_challenge(self, msg):
-        print(msg)
         device_id = msg[3:6].decode()
         device_port = msg[6:8]
         device_key = msg[8:]
-        self._gcs = GCS(device_id, "", "", 5002, False)
-        # generate secret with the clients key
-        _target_key = serialization.load_ssh_public_key(device_key)
-        self._gcs.set_own_key(_target_key)
-        self._gcs.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
-        self.set_shared_secret(self._own_key.exchange(ec.ECDH(), _target_key))
         print("key set")
         # format:
         # [0] type
         # [1,2] msg_id
         # [3,4,5] device id
         # [6,7,8] gcs id
-        msg = bytearray()
-        testID = "GCS"
-        msg.extend(testID.encode())
-        #msg.extend(self._gcs._id.encode())
-        self._send_queue.write([2, msg, True])
-        print("Responded with own data....")
+
 
     @property
     def active(self):
