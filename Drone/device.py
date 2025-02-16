@@ -3,7 +3,8 @@ import secrets
 
 from Crypto.Cipher import ChaCha20_Poly1305
 from cryptography.hazmat.primitives import hashes
-from Crypto.Protocol.KDF import scrypt, HKDF
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from Crypto.Protocol.KDF import scrypt
 from Crypto.Hash import SHA256
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
