@@ -238,8 +238,10 @@ class GCS(Device):
                 format=serialization.PublicFormat.OpenSSH,
             )
         )
-        self._send_queue.write([1, msg, True])
+        #self._send_queue.write([1, msg, True])
+        self.send(1,msg,True) # manually send before encryption value is set
         print("Responded with own data....")
+
         self._current_secret = current_secret
 
 ########################################################################################################################
