@@ -27,10 +27,7 @@ from scapy.packet import Raw
 class Radio:
     def input_handler(self, pkt):
         # Possibly add address filtering at this layer
-        print(pkt[Raw].load)
         self.packet_inbox.put_nowait(pkt[Raw].load)
-        print(self.packet_inbox)
-        print(self.packet_inbox.qsize())
 
     def stop_filter(self, _):
         return self.running is False
