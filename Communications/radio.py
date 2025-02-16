@@ -28,7 +28,7 @@ class Radio:
     def input_handler(self, pkt):
         # Possibly add address filtering at this layer
         print(pkt[Raw].load)
-        self.packet_inbox.put(pkt[Raw].load, block=True, timeout=0.00001)
+        self.packet_inbox.put_nowait(pkt[Raw].load)
 
     def stop_filter(self, _):
         return self.running is False

@@ -166,8 +166,6 @@ class GCS(Device):
                 # check the message is not our owns
                 if msg[3:6].decode() == self._id:
                     return
-                print("New incoming message")
-                print(msg)
                 msg_type = int.from_bytes(msg[0:1], "big")
                 print("Message type:", msg_type)
                 if msg_type == 0 and self._current_secret is None:
@@ -249,8 +247,6 @@ class Drone(Device):
                 ## check the message is not our owns
                 if msg[3:6].decode() == self._id:
                     return
-                print("New incoming message")
-                print(msg)
                 msg_type = int.from_bytes(msg[0:1], "big")
                 print("Message type:", msg_type)
                 if msg_type == 1 and self._current_secret is None:
