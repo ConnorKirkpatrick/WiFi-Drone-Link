@@ -165,35 +165,34 @@ class GCS(Device):
                     if dec_msg is not None:  # if decrypted properly, make msg the decrypted value, else use plain
                         msg = dec_msg
                 # check the message is not our owns
-                if msg[3:6].decode() == self._id:
-                    pass
-                print("Got incoming message")
-                print(msg)
-                msg_type = int.from_bytes(msg[0:1], "big")
-                print("Message type:", msg_type)
-                if msg_type == 0 and self._current_secret is None:
-                    # new broadcast from a drone
-                    print("Got client broadcast")
-                    await self.new_client(msg)
-                elif msg_type == 2 and self._current_secret is not None:
-                    self.send_ack(msg[1:3])
-                    print("Got handshake challenge")
-                    # handshake challenge by client, respond with ack
-                    pass
-                elif msg_type == 4:
-                    # management message
-                    if msg[6] == 0:
-                        # ACK message
-                        # ACK format:
-                        # [0] type (4)
-                        # [1,2] message id
-                        # [3,4,5] device id
-                        # [6] management frame type (0)
-                        # [7,8] ACK message ID
-                        print("Got ACK for:", int.from_bytes(msg[7:9], "big"))
-                        self._radio.clear_timer(int.from_bytes(msg[7:9], "big"))
-                    else:
+                if msg[3:6].decode() != self._id:
+                    print("Got incoming message")
+                    print(msg)
+                    msg_type = int.from_bytes(msg[0:1], "big")
+                    print("Message type:", msg_type)
+                    if msg_type == 0 and self._current_secret is None:
+                        # new broadcast from a drone
+                        print("Got client broadcast")
+                        await self.new_client(msg)
+                    elif msg_type == 2 and self._current_secret is not None:
                         self.send_ack(msg[1:3])
+                        print("Got handshake challenge")
+                        # handshake challenge by client, respond with ack
+                        pass
+                    elif msg_type == 4:
+                        # management message
+                        if msg[6] == 0:
+                            # ACK message
+                            # ACK format:
+                            # [0] type (4)
+                            # [1,2] message id
+                            # [3,4,5] device id
+                            # [6] management frame type (0)
+                            # [7,8] ACK message ID
+                            print("Got ACK for:", int.from_bytes(msg[7:9], "big"))
+                            self._radio.clear_timer(int.from_bytes(msg[7:9], "big"))
+                        else:
+                            self.send_ack(msg[1:3])
 
             else:
                 await asyncio.sleep(0.01)
@@ -247,42 +246,41 @@ class Drone(Device):
                     if dec_msg is not None:  # if decrypted properly, make msg the decrypted value, else use plain
                         msg = dec_msg
                 ## check the message is not our owns
-                if msg[3:6].decode() == self._id:
-                    pass
-                print("Got incoming message")
-                print(msg)
-                msg_type = int.from_bytes(msg[0:1], "big")
-                print("Message type:", msg_type)
-                if msg_type == 1 and self._current_secret is None:
-                    # Broadcast response
-                    self.send_ack(msg[1:3])
-                    print("got broadcast response")
-                    self.handshake_challenge(msg)
-                elif msg_type == 3 and self._current_secret is not None:
-                    self.send_ack(msg[1:3])
-                    print("Got handshake challenge response")
-                    # handshake challenge by client, respond with ack
-                    pass
-                elif msg_type == 4:
-                    # management message
-                    if msg[6] == 0:
-                        # Got ACK
-                        print("Got ACK for:", int.from_bytes(msg[7:9], "big"))
-                        self._radio.clear_timer(int.from_bytes(msg[7:9], "big"))
-                        # key = int.from_bytes(msg[4:], "big")
-                        # try:
-                        #     timer = self.timers.pop(key)
-                        #     while not timer.cancel():
-                        #         timer = self.timers.pop(key)
-                        #         await asyncio.sleep(0.0001)
-                        #     print("Terminated timer successfully")
-                        # except KeyError:
-                        #     pass
-                    else:
-                        self.send_ack(msg[1:3])
-                else:
-                    print("Unknown message obtained")
+                if msg[3:6].decode() != self._id:
+                    print("Got incoming message")
                     print(msg)
+                    msg_type = int.from_bytes(msg[0:1], "big")
+                    print("Message type:", msg_type)
+                    if msg_type == 1 and self._current_secret is None:
+                        # Broadcast response
+                        self.send_ack(msg[1:3])
+                        print("got broadcast response")
+                        self.handshake_challenge(msg)
+                    elif msg_type == 3 and self._current_secret is not None:
+                        self.send_ack(msg[1:3])
+                        print("Got handshake challenge response")
+                        # handshake challenge by client, respond with ack
+                        pass
+                    elif msg_type == 4:
+                        # management message
+                        if msg[6] == 0:
+                            # Got ACK
+                            print("Got ACK for:", int.from_bytes(msg[7:9], "big"))
+                            self._radio.clear_timer(int.from_bytes(msg[7:9], "big"))
+                            # key = int.from_bytes(msg[4:], "big")
+                            # try:
+                            #     timer = self.timers.pop(key)
+                            #     while not timer.cancel():
+                            #         timer = self.timers.pop(key)
+                            #         await asyncio.sleep(0.0001)
+                            #     print("Terminated timer successfully")
+                            # except KeyError:
+                            #     pass
+                        else:
+                            self.send_ack(msg[1:3])
+                    else:
+                        print("Unknown message obtained")
+                        print(msg)
             else:
                 await asyncio.sleep(0.001)
 
