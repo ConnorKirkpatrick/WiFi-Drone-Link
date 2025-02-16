@@ -20,7 +20,6 @@ class Device:
         self._id = device_id
         self._port = port
         self._active = False
-        self._message_id = 0
         self._encryption_engine = None
         # Step 0, generate keys
         self._own_key = ec.generate_private_key(ec.SECP256R1())
@@ -115,7 +114,7 @@ class Device:
         encoded_msg.extend(frame_type.to_bytes(1, "big"))  # [0]
 
         # 2 byte value, ID's from 0-65536
-        encoded_msg.extend(self._message_id.to_bytes(2, "big"))  # [1,2]
+        encoded_msg.extend(self._radio.get_next_id().to_bytes(2, "big"))  # [1,2]
         encoded_msg.extend(self._id.encode())  # [3,4,5]
         encoded_msg.extend(message_contents)  # [6:]
 

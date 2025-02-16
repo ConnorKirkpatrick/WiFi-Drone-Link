@@ -100,6 +100,9 @@ class Radio:
         self.running = True
         self.listener.start()
 
+    def get_next_id(self):
+        return self.message_id
+
     def send(self, message_contents, need_ack=True):
         """
         This method manages sending data via SCAPY in the correct way.
