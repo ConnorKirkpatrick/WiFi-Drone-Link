@@ -2,6 +2,7 @@ import asyncio
 import secrets
 
 from Crypto.Cipher import ChaCha20_Poly1305
+from cryptography.hazmat.primitives import hashes
 from Crypto.Protocol.KDF import scrypt, HKDF
 from Crypto.Hash import SHA256
 from cryptography.hazmat.primitives import serialization
@@ -202,6 +203,25 @@ class GCS(Device):
         device_key = serialization.load_ssh_public_key(msg[6:])
         device_port = 5000
         print("Detected drone with ID: " + device_id)
+        # derive key details
+        target_key = serialization.load_ssh_public_key(msg[6:])
+        shared_secret = self._own_key.exchange(ec.ECDH(), target_key)
+        master_secret = HKDF(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=None,
+            info=b"handshake data",
+        ).derive(shared_secret)
+        # Generate a proper key, using a fixed salt for now,
+        # possibility of adding a future change
+        current_secret = scrypt(
+            master_secret, "0", 32, 1024, 8, 1
+        )
+        print("Shared, master, current secret:")
+        print(shared_secret)
+        print(master_secret)
+        print(current_secret)
+
         # Got a broadcast, respond with ID, pubKey, port
         # format:
         # [0] type
@@ -219,6 +239,7 @@ class GCS(Device):
         )
         self._send_queue.write([1, msg, True])
         print("Responded with own data....")
+        self._current_secret = current_secret
 
 ########################################################################################################################
 class Drone(Device):
@@ -267,15 +288,6 @@ class Drone(Device):
                             # Got ACK
                             print("Got ACK for:", int.from_bytes(msg[7:9], "big"))
                             self._radio.clear_timer(int.from_bytes(msg[7:9], "big"))
-                            # key = int.from_bytes(msg[4:], "big")
-                            # try:
-                            #     timer = self.timers.pop(key)
-                            #     while not timer.cancel():
-                            #         timer = self.timers.pop(key)
-                            #         await asyncio.sleep(0.0001)
-                            #     print("Terminated timer successfully")
-                            # except KeyError:
-                            #     pass
                         else:
                             self.send_ack(msg[1:3])
                     else:
@@ -301,20 +313,46 @@ class Drone(Device):
 
         while not self._active:
             self._current_secret = None
-            self._send_queue.write([0, msg, False])
+            self._send_queue.write([msg_id, msg, False])
             await asyncio.sleep(10)
 
     def handshake_challenge(self, msg):
         device_id = msg[3:6].decode()
         device_port = msg[6:8]
         device_key = msg[8:]
+        # derive key
+        target_key = serialization.load_ssh_public_key(msg[6:])
+        shared_secret = self._own_key.exchange(ec.ECDH(), target_key)
+        master_secret = HKDF(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=None,
+            info=b"handshake data",
+        ).derive(shared_secret)
+        # Generate a proper key, using a fixed salt for now,
+        # possibility of adding a future change
+        current_secret = scrypt(
+            master_secret, "0", 32, 1024, 8, 1
+        )
+
+        print("Shared, master, current secret:")
+        print(shared_secret)
+        print(master_secret)
+        print(current_secret)
+        self._current_secret = current_secret
         print("key set")
         # format:
-        # [0] type
+        # [0] type (2)
         # [1,2] msg_id
         # [3,4,5] device id
         # [6,7,8] gcs id
+        # broadcast the challenge message
+        msg_id = 2
+        plaintext = self._id + device_id
 
+        msg = bytearray()
+        msg.extend(plaintext)
+        self._send_queue.write([msg_id, msg, False])
 
     @property
     def active(self):
