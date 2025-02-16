@@ -294,6 +294,7 @@ class Drone(Device):
                         self.send_ack(msg[1:3])
                         print("Got handshake challenge response")
                         print("GCS Connection confirmed")
+                        self._active = True
                         # handshake challenge by client, respond with ack
                         pass
                     elif msg_type == 4:
