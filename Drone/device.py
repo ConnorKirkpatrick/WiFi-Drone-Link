@@ -180,6 +180,7 @@ class GCS(Device):
                         self.send_ack(msg[1:3])
                         print("Got handshake challenge")
                         # handshake challenge by client, respond with ack
+                        self.client_confirm(msg)
                         pass
                     elif msg_type == 4:
                         # management message
@@ -244,6 +245,16 @@ class GCS(Device):
 
         self._current_secret = current_secret
 
+    def client_confirm(self, msg):
+        # confirm a client device by accepting their handshake challenge and issuing the correct response
+        device_id = msg[3:6].decode()
+        msg_id = 3
+        response = bytearray()
+        response.extend(device_id.encode())
+        response.extend(self._id.encode())
+        self.send(msg_id, response, True)
+        print("Client device confirmed")
+
 ########################################################################################################################
 class Drone(Device):
     def __init__(self, device_id, interface, channel, port, own_device):
@@ -283,6 +294,7 @@ class Drone(Device):
                     elif msg_type == 3 and self._current_secret is not None:
                         self.send_ack(msg[1:3])
                         print("Got handshake challenge response")
+                        print("GCS Connection confirmed")
                         # handshake challenge by client, respond with ack
                         pass
                     elif msg_type == 4:
@@ -357,7 +369,7 @@ class Drone(Device):
         msg = bytearray()
         msg.extend(device_id.encode())
         msg.extend(self._id.encode())
-        self._send_queue.write([msg_id, msg, False])
+        self._send_queue.write([msg_id, msg, True])
 
     @property
     def active(self):
