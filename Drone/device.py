@@ -205,7 +205,7 @@ class GCS(Device):
         device_port = 5000
         print("Detected drone with ID: " + device_id)
         # derive key details
-        target_key = serialization.load_ssh_public_key(msg[6:])
+        target_key = device_key
         shared_secret = self._own_key.exchange(ec.ECDH(), target_key)
         master_secret = HKDF(
             algorithm=hashes.SHA256(),
@@ -320,11 +320,14 @@ class Drone(Device):
             await asyncio.sleep(10)
 
     def handshake_challenge(self, msg):
+        # [3,4,5] device ID
+        # [6,7] port allocation
+        # [8:] key
         device_id = msg[3:6].decode()
         device_port = msg[6:8]
         device_key = msg[8:]
         # derive key
-        target_key = serialization.load_ssh_public_key(msg[6:])
+        target_key = serialization.load_ssh_public_key(device_key)
         shared_secret = self._own_key.exchange(ec.ECDH(), target_key)
         master_secret = HKDF(
             algorithm=hashes.SHA256(),
