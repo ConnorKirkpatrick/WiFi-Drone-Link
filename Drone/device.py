@@ -354,10 +354,9 @@ class Drone(Device):
         # [6,7,8] gcs id
         # broadcast the challenge message
         msg_id = 2
-        plaintext = self._id + device_id
-
         msg = bytearray()
-        msg.extend(plaintext)
+        msg.extend(device_id.encode())
+        msg.extend(self._id.encode())
         self._send_queue.write([msg_id, msg, False])
 
     @property
