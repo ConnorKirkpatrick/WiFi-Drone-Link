@@ -233,12 +233,14 @@ class Drone(Device):
             asyncio.create_task(self.manage_incoming_packets())
             asyncio.create_task(self.manage_outgoing_packets())
             asyncio.create_task(self.broadcast())
+        print("Setup done")
 
     def set_send_queue(self, new_queue):
         self._send_queue = new_queue
 
     async def manage_incoming_packets(self):
         while self._running:
+            print("test")
             if not self._receive_queue.empty():
                 msg = self._receive_queue.get_nowait()
                 # need way to check both encrypted and decrypted
@@ -284,7 +286,7 @@ class Drone(Device):
                     print(msg)
 
             else:
-                await asyncio.sleep(0.01)
+                await asyncio.sleep(0.001)
 
     async def broadcast(self):
         # format:
