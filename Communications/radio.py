@@ -140,6 +140,8 @@ class Radio:
 
     def clear_timer(self, message_id):
         if message_id in self.timers:
+            timer = self.timers[message_id]
+            timer.cancel()
             del self.timers[message_id]
             print("Cleared timer",message_id)
             return True
