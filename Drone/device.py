@@ -128,6 +128,7 @@ class Device:
         self._radio.send(encoded_msg, need_ack)
 
     def send_ack(self, message_id):
+        print("Sending ACK for message ", int.from_bytes(message_id,"big"))
         msg = bytearray()
         code = 0  # management frame (4) type is ack (0)
         msg.extend(code.to_bytes(1, "big"))
@@ -182,17 +183,14 @@ class GCS(Device):
                 elif msg_type == 4:
                     # management message
                     if msg[6] == 0:
-                        # Got ACK
+                        # ACK message
+                        # ACK format:
+                        # [0] type (4)
+                        # [1,2] message id
+                        # [3,4,5] device id
+                        # [6] management frame type (0)
+                        # [7,8] ACK message ID
                         print("Got ACK for:", int.from_bytes(msg[7:9], "big"))
-                        # key = int.from_bytes(msg[4:], "big")
-                        # try:
-                        #     timer = self.timers.pop(key)
-                        #     while not timer.cancel():
-                        #         timer = self.timers.pop(key)
-                        #         await asyncio.sleep(0.0001)
-                        #     print("Terminated timer successfully")
-                        # except KeyError:
-                        #     pass
                     else:
                         self.send_ack(msg[1:3])
 
