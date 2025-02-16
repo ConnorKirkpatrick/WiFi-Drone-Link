@@ -138,6 +138,12 @@ class Radio:
         print("Timer ", message_id, " triggered, remaining attempts:",attempts)
         self.re_send(message_contents, message_id, attempts)
 
+    def clear_timer(self, message_id):
+        if message_id in self.timers:
+            del self.timers[message_id]
+            return True
+        return False
+
     def re_send(self, message_contents, message_id ,attempts):
         """
         The re-send method is functionally identical to the send method except it will take a fixed message ID of the

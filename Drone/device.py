@@ -191,6 +191,7 @@ class GCS(Device):
                         # [6] management frame type (0)
                         # [7,8] ACK message ID
                         print("Got ACK for:", int.from_bytes(msg[7:9], "big"))
+                        self._radio.clear_timer(int.from_bytes(msg[7:9], "big"))
                     else:
                         self.send_ack(msg[1:3])
 
@@ -266,7 +267,8 @@ class Drone(Device):
                     # management message
                     if msg[6] == 0:
                         # Got ACK
-                        print("Got ACK for:", int.from_bytes(msg[4:], "big"))
+                        print("Got ACK for:", int.from_bytes(msg[7:9], "big"))
+                        self._radio.clear_timer(int.from_bytes(msg[7:9], "big"))
                         # key = int.from_bytes(msg[4:], "big")
                         # try:
                         #     timer = self.timers.pop(key)
