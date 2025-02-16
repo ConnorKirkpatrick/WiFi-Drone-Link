@@ -112,19 +112,22 @@ class Radio:
         )
         if need_ack:
             # Finally, create a timer object with the ID of the message
+            timer_id = self.message_id
             timer = asyncio.create_task(
-                self.timer(message_contents)
+                self.timer(message_contents, timer_id)
             )
-            self.timers[self.message_id] = timer
+            self.timers[timer_id] = timer
+
             # increment the counter, so it is ready for the next message
         self.message_id += 1
         print("Send done")
 
-    async def timer(self, message_contents, duration=0.25, attempts=5):
+    async def timer(self, message_contents, message_id, duration=0.25, attempts=5):
         """
         The timer method allows us to create asynchronous tasks to trigger a re-send action if the other device does not
         acknowledge a message in time.
         :param message_contents: [ByteArray] the payload of the overall message
+        :param message_id: [Int] the id of the message
         :param duration: [Float] The time to wait before triggering a re-send in seconds
         :param attempts: [Int] The number of times to try to re-send
         :return:
@@ -132,16 +135,17 @@ class Radio:
         # TOD: Check why the channel value of the broadcast disappears when
         # re-sending
         await asyncio.sleep(duration)
-        print("Timer " ,self.message_id ," triggered, remaining attempts:",attempts)
-        self.re_send(message_contents, attempts)
+        print("Timer ", message_id, " triggered, remaining attempts:",attempts)
+        self.re_send(message_contents, message_id, attempts)
 
-    def re_send(self, message_contents, attempts):
+    def re_send(self, message_contents, message_id ,attempts):
         """
         The re-send method is functionally identical to the send method except it will take a fixed message ID of the
         old message rather than generating a new one. We can also check how many more times to attempt to send this
         message
 
         :param message_contents: [ByteArray] The contents of the packet
+        :param message_id: [Int] The id of the packet
         :param attempts: [Int] The remaining attempts to re-send
         :return:
         """
@@ -151,9 +155,9 @@ class Radio:
         attempts -= 1
         if attempts >= 1:
             timer = asyncio.create_task(
-                self.timer(message_contents, attempts=attempts)
+                self.timer(message_contents, message_id, attempts=attempts)
             )
-            self.timers[self.message_id] = timer
+            self.timers[message_id] = timer
         else:
             print("Timer completed")
 
