@@ -1,13 +1,11 @@
-import multiprocessing.queues
 import asyncio
 import os
 
-from pymavlink.dialects.v20 import common as mavlink2
-
-from Communications.radio import Radio
+#from pymavlink.dialects.v20 import common as mavlink2
+#from Communications.radio import Radio
 
 from initialise import initialise_wifi, reset_wifi
-from Communications import message_store
+#from Communications import message_store
 from Drone.device import GCS, Drone
 
 
@@ -24,17 +22,17 @@ async def main():
         device_id = config.readline().split(":")[1].strip("\n")
         interface = config.readline().split(":")[1].strip("\n")
         channel = config.readline().split(":")[1].strip("\n")
-        initialPort = config.readline().split(":")[1].strip("\n")
+        initial_port = config.readline().split(":")[1].strip("\n")
         config.close()
 
-        packet_outbox = message_store.MessageStore()
-        inputStream = multiprocessing.Queue()
+        # packet_outbox = message_store.MessageStore()
+        # inputStream = multiprocessing.Queue()
         if device_id == "GCS":
             print("Detected as GCS")
-            device = GCS("GCS", interface, channel, initialPort, True)
+            device = GCS("GCS", interface, channel, initial_port, True)
         elif "DR" in device_id:
             print("Detected as Drone")
-            device = Drone(device_id, interface, channel, initialPort, True)
+            device = Drone(device_id, interface, channel, initial_port, True)
 
 
             # while not device_radio.get_handshake_status():
@@ -77,8 +75,6 @@ async def main():
         print("Cancelling")
         device.stop()
         reset_wifi()
-    # mav.gps_raw_int_send()
-    # mav.attitude_send()
 
 
 if __name__ == "__main__":

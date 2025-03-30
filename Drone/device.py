@@ -1,15 +1,15 @@
 import asyncio
 import secrets
+from multiprocessing import Queue
 
 from Crypto.Cipher import ChaCha20_Poly1305
+from Crypto.Protocol.KDF import scrypt
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from Crypto.Protocol.KDF import scrypt
-from Crypto.Hash import SHA256
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from multiprocessing import Queue
+
 
 from Communications.message_store import MessageStore
 from Communications.radio import Radio
@@ -47,14 +47,13 @@ class Device:
 
     def set_shared_secret(self, secret, salt=secrets.randbelow(4_294_967_295)):
         self._shared_secret = secret
-        self._master_secret = HKDF(
-            master=self._shared_secret,
-            key_len=32,
-            hashmod=SHA256,
+        pre_key = HKDF(
+            algorithm=hashes.SHA256(),
+            length=32,
             salt=salt.to_bytes(32, "big"),
-            context=b"master key",
+            info=b"master key",
         )
-
+        self._master_secret = pre_key.derive(secret)
         # Generate a proper key, using a fixed salt for now,
         # possibility of adding a future change
         self._current_secret = scrypt(
@@ -180,7 +179,6 @@ class GCS(Device):
                         print("Got handshake challenge")
                         # handshake challenge by client, respond with ack
                         self.client_confirm(msg)
-                        pass
                     elif msg_type == 4:
                         # management message
                         if msg[6] == 0:
@@ -296,7 +294,6 @@ class Drone(Device):
                         print("GCS Connection confirmed")
                         self._active = True
                         # handshake challenge by client, respond with ack
-                        pass
                     elif msg_type == 4:
                         # management message
                         if msg[6] == 0:
@@ -336,7 +333,7 @@ class Drone(Device):
         # [6,7] port allocation
         # [8:] key
         device_id = msg[3:6].decode()
-        device_port = msg[6:8]
+        # device_port = msg[6:8]
         device_key = msg[8:]
         # derive key
         target_key = serialization.load_ssh_public_key(device_key)
@@ -352,11 +349,6 @@ class Drone(Device):
         current_secret = scrypt(
             master_secret, "0", 32, 1024, 8, 1
         )
-
-        print("Shared, master, current secret:")
-        print(shared_secret)
-        print(master_secret)
-        print(current_secret)
         self._current_secret = current_secret
         print("key set")
         # format:
