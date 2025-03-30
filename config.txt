@@ -1,5 +1,4 @@
 ID:GCS
 Interface:wlan1
 Channel:36
-RecPort:5000
-DesPort:5001
+InitialPort:5000
