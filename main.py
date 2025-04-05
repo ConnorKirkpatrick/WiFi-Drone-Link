@@ -6,10 +6,8 @@ import os
 
 from initialise import initialise_wifi, reset_wifi
 #from Communications import message_store
-from Drone.device import GCS, Drone
-
-
-
+from Drone.drone import Drone
+from Drone.gcs import GCS
 
 async def main():
     device = None
