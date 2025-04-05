@@ -1,5 +1,5 @@
 import asyncio
-from device import Device
+from Drone.device import Device
 
 from Crypto.Protocol.KDF import scrypt
 from cryptography.hazmat.primitives import hashes
