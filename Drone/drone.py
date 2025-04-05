@@ -1,11 +1,12 @@
 import asyncio
-from Drone.device import Device
-
 from Crypto.Protocol.KDF import scrypt
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
+from Drone.device import Device
+
+
 
 class Drone(Device):
     def __init__(self, device_id, interface, channel, port, own_device):
