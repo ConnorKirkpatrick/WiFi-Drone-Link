@@ -88,7 +88,7 @@ class Radio:
         # ChaCha20 variables
         self.current_secret = None
         self.encryption_engine = None
-        # Startup the radio listener thread
+        # Startup the radio listener process
         self.listener = Process(target=self.wireless_receiver)
         self.running = True
         self.listener.start()
@@ -171,8 +171,8 @@ class Radio:
     def end(self):
         print("Trying to end")
         self.running = False
-        # wait 2 seconds to see if the thread joined
-        self.listener.join(timeout=2)
+        # wait 1 seconds to see if the process joined
+        self.listener.join(timeout=1)
         if self.listener.is_alive():
             # force shutdown by breaking the sniff object
             self.listener.kill()
