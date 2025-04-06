@@ -23,45 +23,7 @@ class Drone(Device):
     def set_send_queue(self, new_queue):
         self._send_queue = new_queue
 
-    async def manage_incoming_packets(self):
-        while self._running:
-            if not self._receive_queue.empty():
-                msg = self._receive_queue.get_nowait()
-                # need way to check both encrypted and decrypted
-                if self._current_secret is not None:
-                    dec_msg = self.decrypt(msg[0:-16], msg[-16:])
-                    if dec_msg is not None:  # if decrypted properly, make msg the decrypted value, else use plain
-                        msg = dec_msg
-                ## check the message is not our owns
-                if msg[3:6].decode() != self._id:
-                    print("Got incoming message")
-                    print(msg)
-                    msg_type = int.from_bytes(msg[0:1], "big")
-                    print("Message type:", msg_type)
-                    if msg_type == 1 and self._current_secret is None:
-                        # Broadcast response
-                        self.send_ack(msg[1:3])
-                        print("got broadcast response")
-                        self.handshake_challenge(msg)
-                    elif msg_type == 3 and self._current_secret is not None:
-                        self.send_ack(msg[1:3])
-                        print("Got handshake challenge response")
-                        print("GCS Connection confirmed")
-                        self._active = True
-                        # handshake challenge by client, respond with ack
-                    elif msg_type == 4:
-                        # management message
-                        if msg[6] == 0:
-                            # Got ACK
-                            print("Got ACK for:", int.from_bytes(msg[7:9], "big"))
-                            self._radio.clear_timer(int.from_bytes(msg[7:9], "big"))
-                        else:
-                            self.send_ack(msg[1:3])
-                    else:
-                        print("Unknown message obtained")
-                        print(msg)
-            else:
-                await asyncio.sleep(0.001)
+
 
     async def broadcast(self):
         # format:
