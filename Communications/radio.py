@@ -176,7 +176,6 @@ class Radio:
         if self.listener.is_alive():
             # force shutdown by breaking the sniff object
             self.listener.kill()
-            print("Forcefully resetting the wireless adapter, you will see a warning:")
             subprocess.check_output(
                 ["sudo", "ip", "link", "set", self.interface, "down"]
             )
