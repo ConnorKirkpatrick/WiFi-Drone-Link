@@ -1,3 +1,6 @@
+# pylint: disable=duplicate-code
+# ignore duplicate crypto code for the time being
+
 import asyncio
 from Crypto.Protocol.KDF import scrypt
 from cryptography.hazmat.primitives import hashes
